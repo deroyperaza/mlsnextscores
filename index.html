@@ -152,8 +152,15 @@
                text-transform:uppercase; color:var(--muted); padding:6px 4px; text-align:right}
   .standtbl th:first-child,.standtbl td:first-child{text-align:left; width:auto; max-width:0;
                overflow:hidden; padding-left:12px; padding-right:8px}
-  .standtbl th:not(:first-child),.standtbl td:not(:first-child){width:30px; padding-left:2px; padding-right:4px}
-  .standtbl th.w,.standtbl td.w{width:38px; padding-right:12px}
+  .standtbl th:not(:first-child),.standtbl td:not(:first-child){width:26px; padding-left:2px; padding-right:4px}
+  /* Every number column holds one token and must never break it. W-L-T is the
+     widest of them -- "1-0-0" and the header itself both need the room, and at
+     30px they wrapped onto three lines and made a table of three-match records
+     look like a fault. */
+  .standtbl th,.standtbl td:not(:first-child){white-space:nowrap}
+  .standtbl th.wlt,.standtbl td.wlt{width:50px}
+  .standtbl th.gd,.standtbl td.gd{width:38px}
+  .standtbl th.w,.standtbl td.w{width:36px; padding-right:11px}
   .standtbl td{padding:8px 4px; text-align:right; font-variant-numeric:tabular-nums;
                border-top:1px solid var(--line-soft); font-size:13px}
   .standtbl tbody tr:first-child td{border-top:none}
@@ -578,41 +585,38 @@
       return;
     }
     var tb = (META.tiebreakers || {})[div] || [];
-    // The feed ranks nine tiebreakers. A phone column can hold four of them;
-    // the rest decide the order and stay out of the way.
-    var show = ["points_penalty_shootout", "matches_played", "goal_differential_per_match"];
-    var cols = show.map(function(k){
-      var f = tb.filter(function(t){ return t[1] === k; })[0];
-      return {key:k, abbr:f ? f[0] : k, idx: tb.map(function(t){ return t[1]; }).indexOf(k)};
-    }).filter(function(c){ return c.idx >= 0; });
-    var wl = ["won_penalty_shootout","loss_penalty_shootout","tie_penalty_shootout"].map(function(k){
-      return tb.map(function(t){ return t[1]; }).indexOf(k);
-    });
+    var at = function(k){ return tb.map(function(t){ return t[1]; }).indexOf(k); };
+    /* The league lists points as its first tiebreaker, but that is not how it
+       orders a table: all 232 of them come back sorted by points per match,
+       and only 150 happen to agree with a straight points order. Clubs in a
+       group have often played a different number of matches, so per-match is
+       the honest measure -- but it means a table with points as its headline
+       number reads as though it had been sorted wrong. Both are here, and the
+       one the order actually follows is the one set in bold. */
+    var iMP = at("matches_played"),
+        iPTS = at("points_penalty_shootout"),
+        iPPM = at("points_per_match_penalty_shootout");
+    var wl = ["won_penalty_shootout","loss_penalty_shootout","tie_penalty_shootout"].map(at);
 
     v.innerHTML = head + brackets.map(function(b){
       return '<div class="card"><div class="boxhead"><h3>' + esc(b.name) + '</h3>' +
         '<span class="sub">' + b.rows.length + ' clubs</span></div><div class="standtbl"><table>' +
-        '<thead><tr><th>Club</th><th>MP</th><th>W-L-T</th>' +
-        '<th>GD/M</th><th class="w">PTS</th></tr></thead><tbody>' +
+        '<thead><tr><th>Club</th><th>MP</th><th class="wlt">W-L-T</th>' +
+        '<th class="gd">PTS</th><th class="w">PPM</th></tr></thead><tbody>' +
         b.rows.map(function(r){
           var cid = r[1], v_ = function(i){ return i >= 0 ? (r[2 + i] == null ? "–" : r[2 + i]) : "–"; };
-          var mp = v_(cols.filter(function(c){ return c.key === "matches_played"; })[0] ?
-                      cols.filter(function(c){ return c.key === "matches_played"; })[0].idx : -1);
-          var gd = v_(cols.filter(function(c){ return c.key === "goal_differential_per_match"; })[0] ?
-                      cols.filter(function(c){ return c.key === "goal_differential_per_match"; })[0].idx : -1);
-          var pts = v_(cols.filter(function(c){ return c.key === "points_penalty_shootout"; })[0] ?
-                       cols.filter(function(c){ return c.key === "points_penalty_shootout"; })[0].idx : -1);
+          var mp = v_(iMP), pts = v_(iPTS), ppm = v_(iPPM);
           return '<tr class="' + (isFav(cid) ? "pin" : "") + '"><td>' +
             '<span class="tm"><span class="pos">' + esc(r[0]) + '</span>' +
             '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" style="width:19px;height:19px"' + CRESTFAIL + '>' +
             '<button class="nm" data-club="' + cid + '">' + esc(clubName(cid)) + '</button></span></td>' +
             '<td>' + esc(mp) + '</td>' +
-            '<td>' + esc(v_(wl[0])) + '-' + esc(v_(wl[1])) + '-' + esc(v_(wl[2])) + '</td>' +
-            '<td>' + esc(gd) + '</td>' +
-            '<td class="pts w">' + esc(pts) + '</td></tr>';
+            '<td class="wlt">' + esc(v_(wl[0])) + '-' + esc(v_(wl[1])) + '-' + esc(v_(wl[2])) + '</td>' +
+            '<td class="gd">' + esc(pts) + '</td>' +
+            '<td class="pts w">' + esc(ppm) + '</td></tr>';
         }).join("") + '</tbody></table></div></div>';
     }).join("") +
-    '<div class="pnote">Ranked on the league’s own tiebreakers, in its own order: points, then points per match, matches played, wins, losses, ties, then goal difference, goals for and goals against &mdash; all per match.</div>';
+    '<div class="pnote">Ordered by points per match, which is how MLS NEXT ranks these tables &mdash; clubs in the same group have often played a different number of matches. Ties are broken on matches played, then wins, losses and ties, then goal difference, goals for and goals against, all per match.</div>';
   }
 
   /* ---------- view: clubs ---------- */
