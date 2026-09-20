@@ -138,8 +138,11 @@
             font-variant-numeric:tabular-nums; min-width:18px; text-align:right}
   .side .pens{flex:none; font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums}
   .when{flex:none; text-align:right; min-width:54px}
-  .when .t{display:block; font-family:"Archivo",sans-serif; font-size:12.5px; font-weight:700;
-           font-variant-numeric:tabular-nums; color:var(--text-2)}
+  .match.detail .when{min-width:82px}
+  .when .t,
+  .when .d{display:block; font-family:"Archivo",sans-serif; font-size:12.5px; font-weight:700;
+           font-variant-numeric:tabular-nums; color:var(--text-2); white-space:nowrap}
+  .when .d{margin-bottom:1px}
   .when .ft{display:block; font-family:"Archivo",sans-serif; font-size:9.5px; font-weight:700;
             letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
   .when .tz{display:block; font-size:9.5px; color:var(--muted)}
@@ -485,12 +488,15 @@
     /* On a club's own page the rows are a schedule, not a scoreboard: a run of
        kickoff times with no day against them reads as though the order were
        random. So the date leads and the ground is named underneath. */
-    var foot = "";
+    var foot = "", day = "";
     if(opts.detail){
-      var place = S.venues && S.venues[r[10]];
-      foot = '<span class="mfoot">' +
+      // The day sits with the kickoff, set the same way, because the two are
+      // one fact: when. The ground is a different fact and keeps its own line.
+      day = '<span class="d">' +
         esc(dayLabel(r[1].slice(0, 10), {weekday:"short", month:"short", day:"numeric"})) +
-        (place ? ' \u00b7 ' + esc(place) : "") + '</span>';
+        '</span>';
+      var place = S.venues && S.venues[r[10]];
+      if(place) foot = '<span class="mfoot">' + esc(place) + '</span>';
     }
     return '<button class="match' + (pins ? " pin" : "") + (opts.detail ? " detail" : "") +
       '" data-match="' + r[0] + '">' +
@@ -498,7 +504,7 @@
         side(r[3], hs, hw || (hp !== "" && hp > ap), hp) +
         side(r[4], as, aw || (ap !== "" && ap > hp), ap) +
       '</span>' +
-      '<span class="when">' + when +
+      '<span class="when">' + day + when +
         (opts.age !== false ? '<span class="agebadge">' + esc(r[5]) + '</span>' : "") +
       '</span>' + foot + '</button>';
   }
