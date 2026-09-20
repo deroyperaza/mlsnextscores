@@ -143,6 +143,9 @@
   .when .ft{display:block; font-family:"Archivo",sans-serif; font-size:9.5px; font-weight:700;
             letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
   .when .tz{display:block; font-size:9.5px; color:var(--muted)}
+  .match.detail{grid-template-rows:auto auto; row-gap:6px}
+  .mfoot{grid-column:1 / -1; font-size:11.5px; color:var(--muted); line-height:1.3;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .agebadge{display:inline-flex; align-items:center; justify-content:center; flex:none;
             width:34px; height:19px; border-radius:5px; background:var(--chip); color:var(--text-2);
             font-family:"Archivo",sans-serif; font-weight:700; font-size:10px; letter-spacing:.03em}
@@ -349,6 +352,12 @@
       grab("slugs.json", function(s){ S.slugs = s || {}; done(); });
     });
   }
+  // Only the club page prints a venue, so the list is fetched when one opens
+  // rather than on every boot.
+  function needVenues(done){
+    if(S.venues) return done();
+    grab("venues.json", function(j){ S.venues = j || {}; done(); });
+  }
   function needDay(d, done){
     if(S.days[d] && S.days[d] !== "loading") return done(S.days[d]);
     if(S.days[d] === "loading") return;
@@ -473,14 +482,25 @@
     };
     var hp = "", ap = "";
     if(done && hs === as && (r[13] || r[14])){ hp = r[13]; ap = r[14]; }
-    return '<button class="match' + (pins ? " pin" : "") + '" data-match="' + r[0] + '">' +
+    /* On a club's own page the rows are a schedule, not a scoreboard: a run of
+       kickoff times with no day against them reads as though the order were
+       random. So the date leads and the ground is named underneath. */
+    var foot = "";
+    if(opts.detail){
+      var place = S.venues && S.venues[r[10]];
+      foot = '<span class="mfoot">' +
+        esc(dayLabel(r[1].slice(0, 10), {weekday:"short", month:"short", day:"numeric"})) +
+        (place ? ' \u00b7 ' + esc(place) : "") + '</span>';
+    }
+    return '<button class="match' + (pins ? " pin" : "") + (opts.detail ? " detail" : "") +
+      '" data-match="' + r[0] + '">' +
       '<span class="sides">' +
         side(r[3], hs, hw || (hp !== "" && hp > ap), hp) +
         side(r[4], as, aw || (ap !== "" && ap > hp), ap) +
       '</span>' +
       '<span class="when">' + when +
         (opts.age !== false ? '<span class="agebadge">' + esc(r[5]) + '</span>' : "") +
-      '</span></button>';
+      '</span>' + foot + '</button>';
   }
 
   /* ---------- view: scores ---------- */
@@ -706,7 +726,7 @@
   function renderSheet(){
     var id = S.openClub;
     if(!id) return;
-    needClubs(function(){
+    needClubs(function(){ needVenues(function(){
       el("sheet-name").textContent = clubFull(id);
       var img = el("sheet-crest");
       img.onerror = function(){ this.onerror = null; this.src = BLANK; this.className = "crest nocrest"; };
@@ -764,14 +784,17 @@
         if(!list.length) return "";
         return '<div class="card"><div class="boxhead"><h3>' + esc(title) + '</h3>' +
           '<span class="sub">' + esc(sub) + '</span></div>' +
-          list.map(function(r){ return matchHTML(r); }).join("") + '</div>';
+          list.map(function(r){ return matchHTML(r, {detail:true}); }).join("") + '</div>';
       };
+      /* Played first and both halves in date order, so the page reads as one
+         run down the season rather than two lists pointing opposite ways. And
+         all of it: a club's schedule is the reason to be here, so cutting it
+         at eight only sent people back to the league's own site. */
       body.innerHTML = chips + summary +
-        section("Next up", next.slice(0, 8), next.length + " scheduled") +
-        section("Results", played.slice().reverse(),
-                (played.length - awaiting) + " with a result") +
+        section("Played", played, (played.length - awaiting) + " with a result") +
+        section("Next up", next, next.length + " scheduled") +
         (mine.length ? "" : '<div class="card"><div class="empty">Nothing in that age group or division.</div></div>');
-    });
+    }); });
   }
 
   /* ---------- routing ----------
