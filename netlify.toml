@@ -1,0 +1,26 @@
+[build]
+  publish = "."
+  command = ""
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=60"
+
+# The crests never change once mirrored; they are named by club id and a club
+# that changes its badge gets a new file from the mirror step.
+[[headers]]
+  for = "/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# Clean URLs: /club/nycfc and /scores/2026-09-20 are app routes, not files.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

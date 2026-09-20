@@ -1,0 +1,15 @@
+# Everything here is club-level: fixtures, results and tables. No player is
+# named anywhere in the feed, which is the whole reason this site can be
+# indexed at all -- MLS NEXT is a youth league.
+User-agent: *
+Disallow:
+
+# Not previews, and not welcome to train on somebody's kids' fixture list.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /

@@ -1,0 +1,7 @@
+# The raw feeds are 24MB of somebody else's shape. They are an input, not a
+# record: the refresh re-pulls them every run and the repo keeps what the app
+# actually reads. Only the etags survive, so a run with nothing new is cheap.
+raw/*.json
+!raw/etags.json
+__pycache__/
+.DS_Store
