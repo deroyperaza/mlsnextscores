@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MLS NEXT Scores</title>
+<meta name="description" content="Every MLS NEXT fixture, result and table — Homegrown, Academy and Flex, U13 through U19, on a phone.">
+<meta name="robots" id="robotsmeta" content="index,follow">
+<meta name="theme-color" content="#0B0F14">
+<meta property="og:site_name" content="MLS NEXT Scores">
+<meta property="og:title" content="MLS NEXT Scores">
+<meta property="og:description" content="Every MLS NEXT fixture, result and table — Homegrown, Academy and Flex, U13 through U19, on a phone.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* MLS NEXT's own accent is #2CF9FF on black -- electric, and unreadable as
+     text on white (1.3:1). So the bright cyan is kept for dark surfaces, where
+     it belongs, and a deep companion carries it on light ones. Same colour
+     family, two jobs. */
+  :root{
+    --ink:#0B0F14; --ink-2:#141A22; --cyan:#2CF9FF; --cyan-deep:#00727D;
+    --bg:#F2F5F7; --surface:#FFFFFF; --surface-2:#E7EDF0; --line:#D6DFE4; --line-soft:#E6ECEF;
+    --text:#0E141A; --text-2:#33414D; --muted:#5D6B78;
+    --accent:#00727D; --accent-ink:#FFFFFF;
+    --win:#12795A; --loss:#A23B22; --tie:#8A6A16; --chip:#EBF0F3;
+    --shadow:0 1px 2px rgba(11,15,20,.06), 0 6px 18px rgba(11,15,20,.06);
+    --sel-bg:#0B0F14; --sel-fg:#2CF9FF;
+    --fav-bg:rgba(0,114,125,.09); --fav-line:#00727D;
+    --radius:14px; --nav-h:62px; color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#080C11; --surface:#121921; --surface-2:#1A232D; --line:#26323E; --line-soft:#1E2833;
+      --text:#E8EFF3; --text-2:#BFCCD6; --muted:#8296A5;
+      --accent:#2CF9FF; --accent-ink:#00201F;
+      --win:#3FD3AE; --loss:#E58363; --tie:#D6AE4E; --chip:#1A232D;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 22px rgba(0,0,0,.35);
+      --sel-bg:#2CF9FF; --sel-fg:#00201F;
+      --fav-bg:rgba(44,249,255,.10); --fav-line:#2CF9FF;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#080C11; --surface:#121921; --surface-2:#1A232D; --line:#26323E; --line-soft:#1E2833;
+    --text:#E8EFF3; --text-2:#BFCCD6; --muted:#8296A5;
+    --accent:#2CF9FF; --accent-ink:#00201F;
+    --win:#3FD3AE; --loss:#E58363; --tie:#D6AE4E; --chip:#1A232D;
+    --sel-bg:#2CF9FF; --sel-fg:#00201F;
+    --fav-bg:rgba(44,249,255,.10); --fav-line:#2CF9FF;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--text);
+       font-family:"Barlow",system-ui,-apple-system,sans-serif; font-size:15px; line-height:1.45;
+       -webkit-text-size-adjust:100%; -webkit-font-smoothing:antialiased}
+  button{font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; text-align:left}
+  h1,h2,h3{font-family:"Archivo",sans-serif; margin:0}
+
+  /* ---------- chrome ---------- */
+  .topbar{position:sticky; top:0; z-index:40; background:var(--ink); color:#FFF;
+          padding:calc(env(safe-area-inset-top) + 10px) 14px 0}
+  .brand{display:flex; align-items:center; gap:9px; padding-bottom:8px}
+  .brand .mark{width:26px; height:26px; flex:none}
+  .brand h1{font-size:17px; font-weight:800; letter-spacing:-.01em; color:#FFF}
+  .brand h1 em{font-style:normal; color:var(--cyan)}
+  .stamp{display:flex; align-items:center; gap:6px; font-size:11.5px; color:#9FB0BC; padding-bottom:9px}
+  .stamp .dot{width:7px; height:7px; border-radius:50%; background:#5D6B78; flex:none}
+  .stamp.live .dot{background:var(--cyan); box-shadow:0 0 0 3px rgba(44,249,255,.18)}
+  .seg{display:flex; gap:0; background:rgba(255,255,255,.08); border-radius:11px; padding:3px; margin-bottom:11px}
+  .seg button{flex:1; text-align:center; padding:8px 6px; border-radius:8px; font-family:"Archivo",sans-serif;
+              font-size:12px; font-weight:700; letter-spacing:.055em; text-transform:uppercase; color:#A9BAC6}
+  .seg button[aria-pressed="true"]{background:var(--cyan); color:#00201F}
+
+  .wrap{max-width:720px; margin:0 auto; padding:12px 12px calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px)}
+  .card{background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:12px}
+  .empty,.loading{padding:26px 16px; text-align:center; color:var(--muted); font-size:14px}
+
+  /* ---------- filters ---------- */
+  .filters{margin-bottom:12px}
+  .filterrow{display:flex; align-items:center; gap:9px; margin-bottom:7px}
+  .flabel{font-family:"Archivo",sans-serif; font-size:9.5px; font-weight:700; letter-spacing:.1em;
+          text-transform:uppercase; color:var(--muted); flex:none; width:52px}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; min-width:0}
+  .chips.scroll{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch}
+  .chips.scroll::-webkit-scrollbar{display:none}
+  .chips button{flex:none; padding:6px 12px; border-radius:999px; background:var(--surface-2);
+                font-family:"Archivo",sans-serif; font-size:12.5px; font-weight:700; color:var(--text-2); white-space:nowrap}
+  .chips button[aria-pressed="true"]{background:var(--sel-bg); color:var(--sel-fg)}
+
+  /* ---------- date strip ---------- */
+  .dates{display:flex; gap:7px; overflow-x:auto; padding:2px 0 10px; scrollbar-width:none}
+  .dates::-webkit-scrollbar{display:none}
+  .dates button{flex:none; min-width:58px; padding:8px 10px; border-radius:12px; background:var(--surface);
+                box-shadow:var(--shadow); text-align:center}
+  .dates button[aria-pressed="true"]{background:var(--sel-bg); color:var(--sel-fg)}
+  .dates .dow{display:block; font-family:"Archivo",sans-serif; font-size:9.5px; font-weight:700;
+              letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+  .dates button[aria-pressed="true"] .dow{color:var(--sel-fg); opacity:.75}
+  .dates .dnum{display:block; font-family:"Archivo",sans-serif; font-size:16px; font-weight:800; line-height:1.2}
+  .dates .dn{display:block; font-size:10px; color:var(--muted)}
+  .dates button[aria-pressed="true"] .dn{color:var(--sel-fg); opacity:.75}
+
+  /* ---------- section heads ---------- */
+  .sectionhead{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:4px 3px 7px}
+  .eyebrow{font-family:"Archivo",sans-serif; font-size:10px; font-weight:700; letter-spacing:.11em;
+           text-transform:uppercase; color:var(--muted)}
+  .boxhead{display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+           padding:12px 13px 8px; border-bottom:1px solid var(--line-soft)}
+  .boxhead h3{font-size:14px; font-weight:700; letter-spacing:-.005em}
+  .boxhead .sub{font-size:11.5px; color:var(--muted)}
+
+  /* ---------- a match ---------- */
+  .match{display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px;
+         width:100%; padding:10px 13px; border-top:1px solid var(--line-soft)}
+  .match:first-child{border-top:0}
+  .match.pin{background:var(--fav-bg); box-shadow:inset 3px 0 0 var(--fav-line)}
+  .sides{min-width:0; display:flex; flex-direction:column; gap:5px}
+  .side{display:flex; align-items:center; gap:8px; min-width:0}
+  .side.dim{color:var(--muted)}
+  .crest{width:22px; height:22px; flex:none; border-radius:4px; object-fit:contain; background:var(--surface-2)}
+  /* A club whose badge has not been mirrored yet gets the empty square rather
+     than the browser's broken-image glyph, which reads as a fault in the page. */
+  .crest.nocrest{background:var(--chip)}
+  .side .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+            font-size:14.5px; font-weight:600}
+  .side .sc{flex:none; font-family:"Archivo",sans-serif; font-weight:800; font-size:15px;
+            font-variant-numeric:tabular-nums; min-width:18px; text-align:right}
+  .side .pens{flex:none; font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .when{flex:none; text-align:right; min-width:54px}
+  .when .t{display:block; font-family:"Archivo",sans-serif; font-size:12.5px; font-weight:700;
+           font-variant-numeric:tabular-nums; color:var(--text-2)}
+  .when .ft{display:block; font-family:"Archivo",sans-serif; font-size:9.5px; font-weight:700;
+            letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+  .when .tz{display:block; font-size:9.5px; color:var(--muted)}
+  .agebadge{display:inline-flex; align-items:center; justify-content:center; flex:none;
+            width:34px; height:19px; border-radius:5px; background:var(--chip); color:var(--text-2);
+            font-family:"Archivo",sans-serif; font-weight:700; font-size:10px; letter-spacing:.03em}
+  .divbadge{display:inline-flex; align-items:center; justify-content:center; flex:none;
+            height:19px; padding:0 6px; border-radius:5px; background:var(--surface-2); color:var(--muted);
+            font-family:"Archivo",sans-serif; font-weight:700; font-size:9.5px; letter-spacing:.07em}
+
+  /* ---------- tables ---------- */
+  .standtbl{padding:4px 2px 8px}
+  .standtbl table{table-layout:fixed; width:100%; border-collapse:collapse}
+  .standtbl th{font-family:"Archivo",sans-serif; font-size:9.5px; font-weight:700; letter-spacing:.07em;
+               text-transform:uppercase; color:var(--muted); padding:6px 4px; text-align:right}
+  .standtbl th:first-child,.standtbl td:first-child{text-align:left; width:auto; max-width:0;
+               overflow:hidden; padding-left:12px; padding-right:8px}
+  .standtbl th:not(:first-child),.standtbl td:not(:first-child){width:30px; padding-left:2px; padding-right:4px}
+  .standtbl th.w,.standtbl td.w{width:38px; padding-right:12px}
+  .standtbl td{padding:8px 4px; text-align:right; font-variant-numeric:tabular-nums;
+               border-top:1px solid var(--line-soft); font-size:13px}
+  .standtbl tbody tr:first-child td{border-top:none}
+  .standtbl tr.pin td{background:var(--fav-bg)}
+  .standtbl tr.pin td:first-child{box-shadow:inset 3px 0 0 var(--fav-line)}
+  .standtbl .tm{display:flex; align-items:center; gap:8px; min-width:0; width:100%}
+  .standtbl .tm .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+                    white-space:nowrap; text-align:left; font-weight:600}
+  .standtbl .pos{flex:none; width:17px; font-family:"Archivo",sans-serif; font-size:11px; font-weight:700;
+                 color:var(--muted); text-align:right; font-variant-numeric:tabular-nums}
+  .standtbl .pts{font-family:"Archivo",sans-serif; font-weight:800}
+
+  /* ---------- club rows, search ---------- */
+  .search{display:flex; align-items:center; gap:8px; background:var(--surface); border-radius:12px;
+          padding:0 12px; box-shadow:var(--shadow); margin-bottom:12px}
+  .search svg{width:17px; height:17px; color:var(--muted); flex:none}
+  .search input{flex:1; border:0; background:none; padding:12px 0; font:inherit; color:inherit; min-width:0; outline:none}
+  .clubrow{display:flex; align-items:center; gap:10px; width:100%; padding:10px 13px; border-top:1px solid var(--line-soft)}
+  .clubrow:first-child{border-top:0}
+  .clubrow.pin{background:var(--fav-bg); box-shadow:inset 3px 0 0 var(--fav-line)}
+  .clubrow .info{flex:1 1 auto; min-width:0}
+  .clubrow .nm{display:block; font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .clubrow .sub{display:block; font-size:11.5px; color:var(--muted)}
+  .star{flex:none; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:9px}
+  .star svg{width:19px; height:19px; fill:none; stroke:var(--muted); stroke-width:1.8}
+  .star[aria-pressed="true"] svg{fill:var(--fav-line); stroke:var(--fav-line)}
+
+  /* ---------- sheet ---------- */
+  .sheet{position:fixed; inset:0; z-index:60; display:none}
+  .sheet[open]{display:block}
+  .sheet .scrim{position:absolute; inset:0; background:rgba(8,12,17,.55)}
+  .sheet .panel{position:absolute; inset:auto 0 0 0; max-height:92vh; background:var(--bg);
+                border-radius:18px 18px 0 0; display:flex; flex-direction:column; overflow:hidden}
+  .sheet .head{display:flex; align-items:center; gap:11px; padding:14px 14px 12px; background:var(--ink); color:#FFF}
+  .sheet .head .crest{width:38px; height:38px; border-radius:7px; background:rgba(255,255,255,.1)}
+  .sheet .head h2{flex:1 1 auto; min-width:0; font-size:17px; font-weight:800; overflow:hidden;
+                  text-overflow:ellipsis; white-space:nowrap; color:#FFF}
+  .sheet .head .star svg{stroke:#9FB0BC}
+  .sheet .head .star[aria-pressed="true"] svg{fill:var(--cyan); stroke:var(--cyan)}
+  .sheet .close{flex:none; width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,.12);
+                color:#FFF; display:flex; align-items:center; justify-content:center; font-size:19px}
+  .sheet .body{flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 12px 30px}
+
+  /* ---------- bottom nav ---------- */
+  .tabbar{position:fixed; left:0; right:0; bottom:0; z-index:50; height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+          padding-bottom:env(safe-area-inset-bottom); background:var(--surface);
+          border-top:1px solid var(--line); display:flex}
+  .tabbar button{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+                 color:var(--muted); font-family:"Archivo",sans-serif; font-size:9.5px; font-weight:700;
+                 letter-spacing:.06em; text-transform:uppercase}
+  .tabbar button svg{width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.9;
+                     stroke-linecap:round; stroke-linejoin:round}
+  .tabbar button[aria-pressed="true"]{color:var(--accent)}
+  .pnote{padding:11px 13px; font-size:12.5px; color:var(--muted)}
+  .rosterbtn{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;
+             padding:13px; font-family:"Archivo",sans-serif; font-size:13px; font-weight:700}
+  .rosterbtn .ch{color:var(--accent); font-size:12px}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="#2CF9FF"></rect>
+      <path d="M8 22V10l4.6 7 4.6-7v12" stroke="#0B0F14" stroke-width="2.6" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"></path>
+      <circle cx="23" cy="20" r="2.4" fill="#0B0F14"></circle>
+    </svg>
+    <h1>MLS <em>NEXT</em> Scores</h1>
+  </div>
+  <div class="stamp" id="stamp"><span class="dot"></span><span id="stamptext">Loading…</span></div>
+  <div class="seg" role="group" aria-label="Division">
+    <button id="div-all" data-div="all" aria-pressed="true">All</button>
+    <button id="div-league" data-div="league" aria-pressed="false">Homegrown</button>
+    <button id="div-academy" data-div="academy" aria-pressed="false">Academy</button>
+    <button id="div-flex" data-div="flex" aria-pressed="false">Flex</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="view-scores"></section>
+  <section id="view-tables" hidden></section>
+  <section id="view-clubs" hidden></section>
+</main>
+
+<nav class="tabbar" role="tablist">
+  <button id="tab-scores" data-tab="scores" aria-pressed="true">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M8 3v4M16 3v4M3 11h18"></path></svg>
+    Scores
+  </button>
+  <button id="tab-tables" data-tab="tables" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="M4 20V9M10 20V4M16 20v-7M22 20H2"></path></svg>
+    Tables
+  </button>
+  <button id="tab-clubs" data-tab="clubs" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.4-2.9 8.2-7 9.5C7.9 19.2 5 15.4 5 11V6z"></path></svg>
+    Clubs
+  </button>
+</nav>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Club">
+  <div class="scrim" data-close="1"></div>
+  <div class="panel">
+    <div class="head">
+      <img class="crest" id="sheet-crest" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+      <h2 id="sheet-name">Club</h2>
+      <button class="star" id="sheet-fav" aria-pressed="false" aria-label="Follow this club">
+        <svg viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8z"></path></svg>
+      </button>
+      <button class="close" data-close="1" aria-label="Close">&times;</button>
+    </div>
+    <div class="body" id="sheet-body"></div>
+  </div>
+</div>
+
+<script id="mlsnext-meta" type="application/json">__META__</script>
+<script>
+(function(){
+  "use strict";
+  var META = JSON.parse(document.getElementById("mlsnext-meta").textContent);
+  var DATA = META.path || "/data/";
+
+  var S = {
+    view: "scores",
+    div: "all",              // all | league | academy | flex
+    age: "all",
+    date: null,
+    tableAge: null,
+    followOnly: false,
+    q: "",
+    clubs: null,             // id -> [name, short, [divisions]]
+    slugs: null,             // slug -> id
+    venues: null,
+    days: {},                // date -> rows | "loading" | "error"
+    clubData: {},            // id -> rows
+    tables: {},              // key -> brackets
+    favs: new Set(),
+    openClub: null
+  };
+
+  function el(id){ return document.getElementById(id); }
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  var DIV_NAME = {}, DIV_ABBR = {};
+  (META.divisions || []).forEach(function(d){ DIV_NAME[d.key] = d.name; DIV_ABBR[d.key] = d.abbr; });
+
+  /* ---------- fetching ----------
+     Every file here is small and immutable enough to keep once fetched: a day
+     is 40KB at its worst and a club is 16KB. The cache is per session, so a
+     refresh picks up new scores without the app having to guess at staleness. */
+  var pending = {};
+  function grab(path, done){
+    if(pending[path]) { pending[path].push(done); return; }
+    pending[path] = [done];
+    fetch(DATA + path, {cache: "default"}).then(function(r){
+      if(!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function(j){
+      var q = pending[path]; delete pending[path];
+      q.forEach(function(f){ f(j); });
+    }).catch(function(){
+      var q = pending[path]; delete pending[path];
+      q.forEach(function(f){ f(null); });
+    });
+  }
+
+  function needClubs(done){
+    if(S.clubs) return done();
+    grab("clubs.json", function(j){
+      S.clubs = j || {};
+      grab("slugs.json", function(s){ S.slugs = s || {}; done(); });
+    });
+  }
+  function needDay(d, done){
+    if(S.days[d] && S.days[d] !== "loading") return done(S.days[d]);
+    if(S.days[d] === "loading") return;
+    S.days[d] = "loading";
+    grab("d/" + d + ".json", function(j){ S.days[d] = j || "error"; done(S.days[d]); });
+  }
+  function needClub(id, done){
+    if(S.clubData[id]) return done(S.clubData[id]);
+    grab("c/" + id + ".json", function(j){ S.clubData[id] = j || "error"; done(S.clubData[id]); });
+  }
+  function needTable(key, done){
+    if(S.tables[key]) return done(S.tables[key]);
+    grab("t/" + key + ".json", function(j){ S.tables[key] = j || "error"; done(S.tables[key]); });
+  }
+
+  /* ---------- clubs ---------- */
+  function club(id){ return (S.clubs && S.clubs[String(id)]) || null; }
+  function clubName(id){ var c = club(id); return c ? c[1] : "#" + id; }
+  function clubFull(id){ var c = club(id); return c ? c[0] : "#" + id; }
+  function crest(id){ return "/img/clubs/" + id + ".png"; }
+  var BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+  var CRESTFAIL = ' onerror="this.onerror=null;this.src=\'' + BLANK + '\';this.className+=\' nocrest\'"';
+  function slugOf(id){
+    if(!S.slugs) return String(id);
+    for(var k in S.slugs){ if(S.slugs[k] === id) return k; }
+    return String(id);
+  }
+
+  /* ---------- follows ----------
+     Stored as club ids, and carried in the URL as ?f= as well, because a phone
+     browser drops a site's storage after a week away and the copy in a link is
+     often the only one left. Same lesson, different league. */
+  function loadFavs(){
+    try{
+      var raw = localStorage.getItem("mlsnext.favs");
+      if(raw) JSON.parse(raw).forEach(function(k){ S.favs.add(String(k)); });
+    }catch(e){}
+    try{
+      var m = location.search.match(/[?&]f=([^&]*)/);
+      if(m) decodeURIComponent(m[1]).split(",").forEach(function(k){ if(k) S.favs.add(k); });
+    }catch(e){}
+    saveFavs();
+  }
+  function saveFavs(){
+    try{ localStorage.setItem("mlsnext.favs", JSON.stringify(Array.from(S.favs))); }catch(e){}
+  }
+  function isFav(id){ return S.favs.has(String(id)); }
+  function toggleFav(id){
+    id = String(id);
+    if(S.favs.has(id)) S.favs.delete(id); else S.favs.add(id);
+    saveFavs(); syncUrl("now"); render();
+  }
+
+  /* ---------- time ----------
+     A fixture's kickoff is stored in UTC with the venue's own timezone beside
+     it, because a 7pm kickoff in California is not 7pm to a parent watching
+     from Brooklyn -- and both of those people want to know when to look. */
+  var TZ_ABBR = {"America/New_York":"ET","America/Chicago":"CT","America/Denver":"MT",
+                 "America/Phoenix":"MST","America/Los_Angeles":"PT","America/Anchorage":"AKT",
+                 "Pacific/Honolulu":"HST","America/Toronto":"ET","America/Vancouver":"PT",
+                 "America/Edmonton":"MT","America/Winnipeg":"CT","America/Halifax":"AT"};
+  var HERE = (function(){
+    try{ return Intl.DateTimeFormat().resolvedOptions().timeZone; }catch(e){ return ""; }
+  })();
+  /* 10:00 UTC is 6am in New York and 3am in California: nobody's kickoff. It is
+     what the feed writes when a fixture has a date but no time yet, and it sits
+     on 1,440 of them -- the spring fixtures nobody has scheduled. Printing
+     "6:00am" for those would be inventing a fact, so they say so instead. */
+  function unscheduled(iso){ return String(iso || "").slice(11, 16) === "10:00"; }
+  function timeIn(iso, tz){
+    try{
+      return new Intl.DateTimeFormat("en-US", {hour:"numeric", minute:"2-digit", timeZone: tz || HERE})
+        .format(new Date(iso)).replace(/\s?([AP])M/, function(m, a){ return a.toLowerCase() + "m"; });
+    }catch(e){ return ""; }
+  }
+  function tzLabel(tz){
+    if(!tz || tz === HERE) return "";
+    return TZ_ABBR[tz] || tz.split("/").pop().replace(/_/g, " ");
+  }
+  function dayLabel(d, style){
+    var dt = new Date(d + "T12:00:00Z");
+    return new Intl.DateTimeFormat("en-US", style).format(dt);
+  }
+  function todayISO(){
+    var n = new Date();
+    return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+  function nearestDate(){
+    var t = todayISO(), ds = META.dates || [];
+    for(var i = 0; i < ds.length; i++){ if(ds[i] >= t) return ds[i]; }
+    return ds[ds.length - 1] || t;
+  }
+
+  /* ---------- rendering: a match row ---------- */
+  function matchHTML(r, opts){
+    opts = opts || {};
+    var done = r[9], hs = r[7], as = r[8];
+    var hw = done && hs > as, aw = done && as > hs;
+    var pins = isFav(r[3]) || isFav(r[4]);
+    var when;
+    if(done){
+      when = '<span class="ft">Final</span>';
+    }else if(unscheduled(r[1])){
+      when = '<span class="ft">Time TBC</span>';
+    }else{
+      var tz = tzLabel(r[2]);
+      when = '<span class="t">' + esc(timeIn(r[1], r[2])) + '</span>' +
+             (tz ? '<span class="tz">' + esc(tz) + '</span>' : "");
+    }
+    var side = function(id, score, winner, pens){
+      return '<span class="side' + (done && !winner ? " dim" : "") + '">' +
+        '<img class="crest" src="' + crest(id) + '" alt="" loading="lazy"' + CRESTFAIL + '>' +
+        '<span class="nm">' + esc(clubName(id)) + '</span>' +
+        (done ? '<span class="sc">' + esc(score) + '</span>' : "") +
+        (pens ? '<span class="pens">(' + pens + ')</span>' : "") + '</span>';
+    };
+    var hp = "", ap = "";
+    if(done && hs === as && (r[13] || r[14])){ hp = r[13]; ap = r[14]; }
+    return '<button class="match' + (pins ? " pin" : "") + '" data-match="' + r[0] + '">' +
+      '<span class="sides">' +
+        side(r[3], hs, hw || (hp !== "" && hp > ap), hp) +
+        side(r[4], as, aw || (ap !== "" && ap > hp), ap) +
+      '</span>' +
+      '<span class="when">' + when +
+        (opts.age !== false ? '<span class="agebadge">' + esc(r[5]) + '</span>' : "") +
+      '</span></button>';
+  }
+
+  /* ---------- view: scores ---------- */
+  function ageChips(active, onto){
+    var ages = META.ages || [];
+    return '<div class="filterrow"><span class="flabel">Age</span><div class="chips scroll">' +
+      '<button data-' + onto + '="all" aria-pressed="' + (active === "all") + '">All</button>' +
+      ages.map(function(a){
+        return '<button data-' + onto + '="' + esc(a) + '" aria-pressed="' + (active === a) + '">' + esc(a) + '</button>';
+      }).join("") + '</div></div>';
+  }
+
+  function dateStrip(){
+    var ds = META.dates || [], here = ds.indexOf(S.date);
+    var from = Math.max(0, here - 6), slice = ds.slice(from, from + 21);
+    var t = todayISO();
+    return '<div class="dates" id="datestrip">' + slice.map(function(d){
+      var on = d === S.date;
+      return '<button data-date="' + d + '" aria-pressed="' + on + '">' +
+        '<span class="dow">' + esc(dayLabel(d, {weekday:"short"})) + '</span>' +
+        '<span class="dnum">' + esc(dayLabel(d, {day:"numeric"})) + '</span>' +
+        '<span class="dn">' + (d === t ? "today" : esc(dayLabel(d, {month:"short"}))) + '</span>' +
+      '</button>';
+    }).join("") + '</div>';
+  }
+
+  function passes(r){
+    if(S.div !== "all" && r[6] !== S.div) return false;
+    if(S.age !== "all" && r[5] !== S.age) return false;
+    if(S.followOnly && !(isFav(r[3]) || isFav(r[4]))) return false;
+    return true;
+  }
+
+  function renderScores(){
+    var v = el("view-scores");
+    if(!S.date) S.date = nearestDate();
+    var head = dateStrip() +
+      '<div class="filters">' + ageChips(S.age, "age") +
+      (S.favs.size ? '<div class="filterrow"><span class="flabel">Show</span><div class="chips">' +
+        '<button data-follow="0" aria-pressed="' + (!S.followOnly) + '">Everyone</button>' +
+        '<button data-follow="1" aria-pressed="' + (S.followOnly) + '">My clubs</button>' +
+        '</div></div>' : "") + '</div>';
+
+    var rows = S.days[S.date];
+    if(!rows || rows === "loading"){
+      v.innerHTML = head + '<div class="card"><div class="loading">Loading ' +
+        esc(dayLabel(S.date, {weekday:"long", month:"long", day:"numeric"})) + '…</div></div>';
+      needDay(S.date, function(){ if(S.view === "scores") renderScores(); });
+      return;
+    }
+    if(rows === "error"){
+      v.innerHTML = head + '<div class="card"><div class="empty">Nothing scheduled that day.</div></div>';
+      return;
+    }
+
+    var keep = rows.filter(passes);
+    var body = "";
+    if(!keep.length){
+      body = '<div class="card"><div class="empty">' +
+        (S.followOnly ? "None of your clubs play on this date."
+         : S.age === "all" && S.div === "all" ? "No matches on this date."
+         : "No matches in that division or age group on this date.") + '</div></div>';
+    }else{
+      // Followed clubs first, whole and separate: the reason to open this on a
+      // Saturday morning is one or two teams, not four hundred.
+      var mine = keep.filter(function(r){ return isFav(r[3]) || isFav(r[4]); });
+      var rest = S.followOnly ? [] : keep.filter(function(r){ return !(isFav(r[3]) || isFav(r[4])); });
+      if(mine.length && !S.followOnly){
+        body += '<div class="card"><div class="boxhead"><h3>My clubs</h3><span class="sub">' +
+          mine.length + ' match' + (mine.length === 1 ? "" : "es") + '</span></div>' +
+          mine.map(function(r){ return matchHTML(r); }).join("") + '</div>';
+      }
+      var pool = (mine.length && !S.followOnly) ? rest : keep;
+      // Grouped by division then age, because that is how the league is run and
+      // how a parent thinks: my kid's division, my kid's year.
+      var groups = {};
+      pool.forEach(function(r){
+        var k = r[6] + "\u0001" + r[5];
+        (groups[k] = groups[k] || []).push(r);
+      });
+      var order = Object.keys(groups).sort();
+      order.forEach(function(k){
+        var parts = k.split("\u0001"), g = groups[k];
+        body += '<div class="card"><div class="boxhead"><h3>' + esc(parts[1]) + '</h3>' +
+          '<span class="sub">' + esc(DIV_NAME[parts[0]] || parts[0]) + ' · ' + g.length + '</span></div>' +
+          g.map(function(r){ return matchHTML(r, {age:false}); }).join("") + '</div>';
+      });
+    }
+    v.innerHTML = head + '<div class="sectionhead"><span class="eyebrow">' +
+      esc(dayLabel(S.date, {weekday:"long", month:"long", day:"numeric"})) + '</span>' +
+      '<span class="eyebrow">' + keep.length + ' of ' + rows.length + '</span></div>' + body;
+    var strip = el("datestrip");
+    if(strip){
+      var on = strip.querySelector('[aria-pressed="true"]');
+      if(on) on.scrollIntoView({block:"nearest", inline:"center"});
+    }
+  }
+
+  /* ---------- view: tables ---------- */
+  function renderTables(){
+    var v = el("view-tables");
+    var ages = META.ages || [];
+    if(!S.tableAge) S.tableAge = ages.indexOf("U15") >= 0 ? "U15" : (ages[0] || "U13");
+    var div = S.div === "all" ? (META.divisions[0] || {}).key : S.div;
+    var head = '<div class="filters">' + ageChips(S.tableAge, "tage") + '</div>';
+    if(S.div === "all"){
+      head += '<div class="sectionhead"><span class="eyebrow">' +
+        esc(DIV_NAME[div] || div) + '</span><span class="eyebrow">pick a division above</span></div>';
+    }
+    var key = div + "__" + S.tableAge;
+    var brackets = S.tables[key];
+    if(!brackets){
+      v.innerHTML = head + '<div class="card"><div class="loading">Loading tables…</div></div>';
+      needTable(key, function(){ if(S.view === "tables") renderTables(); });
+      return;
+    }
+    if(brackets === "error" || !brackets.length){
+      v.innerHTML = head + '<div class="card"><div class="empty">No ' + esc(S.tableAge) +
+        ' tables in ' + esc(DIV_NAME[div] || div) + ' this season.</div></div>';
+      return;
+    }
+    var tb = (META.tiebreakers || {})[div] || [];
+    // The feed ranks nine tiebreakers. A phone column can hold four of them;
+    // the rest decide the order and stay out of the way.
+    var show = ["points_penalty_shootout", "matches_played", "goal_differential_per_match"];
+    var cols = show.map(function(k){
+      var f = tb.filter(function(t){ return t[1] === k; })[0];
+      return {key:k, abbr:f ? f[0] : k, idx: tb.map(function(t){ return t[1]; }).indexOf(k)};
+    }).filter(function(c){ return c.idx >= 0; });
+    var wl = ["won_penalty_shootout","loss_penalty_shootout","tie_penalty_shootout"].map(function(k){
+      return tb.map(function(t){ return t[1]; }).indexOf(k);
+    });
+
+    v.innerHTML = head + brackets.map(function(b){
+      return '<div class="card"><div class="boxhead"><h3>' + esc(b.name) + '</h3>' +
+        '<span class="sub">' + b.rows.length + ' clubs</span></div><div class="standtbl"><table>' +
+        '<thead><tr><th>Club</th><th>MP</th><th>W-L-T</th>' +
+        '<th>GD/M</th><th class="w">PTS</th></tr></thead><tbody>' +
+        b.rows.map(function(r){
+          var cid = r[1], v_ = function(i){ return i >= 0 ? (r[2 + i] == null ? "–" : r[2 + i]) : "–"; };
+          var mp = v_(cols.filter(function(c){ return c.key === "matches_played"; })[0] ?
+                      cols.filter(function(c){ return c.key === "matches_played"; })[0].idx : -1);
+          var gd = v_(cols.filter(function(c){ return c.key === "goal_differential_per_match"; })[0] ?
+                      cols.filter(function(c){ return c.key === "goal_differential_per_match"; })[0].idx : -1);
+          var pts = v_(cols.filter(function(c){ return c.key === "points_penalty_shootout"; })[0] ?
+                       cols.filter(function(c){ return c.key === "points_penalty_shootout"; })[0].idx : -1);
+          return '<tr class="' + (isFav(cid) ? "pin" : "") + '"><td>' +
+            '<span class="tm"><span class="pos">' + esc(r[0]) + '</span>' +
+            '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" style="width:19px;height:19px"' + CRESTFAIL + '>' +
+            '<button class="nm" data-club="' + cid + '">' + esc(clubName(cid)) + '</button></span></td>' +
+            '<td>' + esc(mp) + '</td>' +
+            '<td>' + esc(v_(wl[0])) + '-' + esc(v_(wl[1])) + '-' + esc(v_(wl[2])) + '</td>' +
+            '<td>' + esc(gd) + '</td>' +
+            '<td class="pts w">' + esc(pts) + '</td></tr>';
+        }).join("") + '</tbody></table></div></div>';
+    }).join("") +
+    '<div class="pnote">Ranked on the league’s own tiebreakers, in its own order: points, then points per match, matches played, wins, losses, ties, then goal difference, goals for and goals against &mdash; all per match.</div>';
+  }
+
+  /* ---------- view: clubs ---------- */
+  function renderClubs(){
+    var v = el("view-clubs");
+    if(!S.clubs){
+      v.innerHTML = '<div class="card"><div class="loading">Loading clubs…</div></div>';
+      needClubs(function(){ if(S.view === "clubs") renderClubs(); });
+      return;
+    }
+    var head = '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.4-3.4"></path></svg>' +
+      '<input id="cq" type="search" placeholder="Search clubs" value="' + esc(S.q) + '" autocomplete="off" aria-label="Search clubs"></div>';
+    var q = S.q.trim().toLowerCase();
+    var ids = Object.keys(S.clubs).filter(function(id){
+      var c = S.clubs[id];
+      if(S.div !== "all" && c[2].indexOf(S.div) < 0) return false;
+      return !q || c[0].toLowerCase().indexOf(q) > -1;
+    }).sort(function(a, b){ return S.clubs[a][1].localeCompare(S.clubs[b][1]); });
+
+    var row = function(id){
+      var c = S.clubs[id];
+      return '<div class="clubrow' + (isFav(id) ? " pin" : "") + '">' +
+        '<img class="crest" src="' + crest(id) + '" alt="" loading="lazy" style="width:28px;height:28px"' + CRESTFAIL + '>' +
+        '<button class="info" data-club="' + id + '"><span class="nm">' + esc(c[0]) + '</span>' +
+        '<span class="sub">' + c[2].map(function(d){ return esc(DIV_NAME[d] || d); }).join(" · ") + '</span></button>' +
+        '<button class="star" data-fav="' + id + '" aria-pressed="' + isFav(id) + '" aria-label="Follow ' + esc(c[0]) + '">' +
+        '<svg viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8z"></path></svg>' +
+        '</button></div>';
+    };
+    var body = "";
+    var mine = ids.filter(function(id){ return isFav(id); });
+    if(mine.length && !q){
+      body += '<div class="card"><div class="boxhead"><h3>Following</h3><span class="sub">' +
+        mine.length + '</span></div>' + mine.map(row).join("") + '</div>';
+      ids = ids.filter(function(id){ return !isFav(id); });
+    }
+    body += ids.length
+      ? '<div class="card"><div class="boxhead"><h3>' + (q ? "Results" : "All clubs") + '</h3>' +
+        '<span class="sub">' + ids.length + '</span></div>' + ids.map(row).join("") + '</div>'
+      : '<div class="card"><div class="empty">No club by that name' +
+        (S.div === "all" ? "" : " in " + esc(DIV_NAME[S.div] || S.div)) + '.</div></div>';
+    v.innerHTML = head + body;
+  }
+
+  /* ---------- the club sheet ---------- */
+  function openClub(id){
+    S.openClub = String(id);
+    el("sheet").setAttribute("open", "");
+    document.body.style.overflow = "hidden";
+    renderSheet();
+    syncUrl("push");
+  }
+  function closeClub(){
+    S.openClub = null;
+    el("sheet").removeAttribute("open");
+    document.body.style.overflow = "";
+    syncUrl("push");
+  }
+  function renderSheet(){
+    var id = S.openClub;
+    if(!id) return;
+    needClubs(function(){
+      el("sheet-name").textContent = clubFull(id);
+      var img = el("sheet-crest");
+      img.onerror = function(){ this.onerror = null; this.src = BLANK; this.className = "crest nocrest"; };
+      img.className = "crest";
+      img.src = crest(id);
+      el("sheet-fav").setAttribute("aria-pressed", isFav(id) ? "true" : "false");
+      var rows = S.clubData[id];
+      var body = el("sheet-body");
+      if(!rows){
+        body.innerHTML = '<div class="card"><div class="loading">Loading…</div></div>';
+        needClub(id, function(){ if(S.openClub === id) renderSheet(); });
+        return;
+      }
+      if(rows === "error"){
+        body.innerHTML = '<div class="card"><div class="empty">No fixtures on file for this club.</div></div>';
+        return;
+      }
+      var mine = S.age === "all" ? rows : rows.filter(function(r){ return r[5] === S.age; });
+      if(S.div !== "all") mine = mine.filter(function(r){ return r[6] === S.div; });
+      var ages = {};
+      rows.forEach(function(r){ ages[r[5]] = true; });
+      var chips = '<div class="filters"><div class="filterrow"><span class="flabel">Age</span>' +
+        '<div class="chips scroll"><button data-age="all" aria-pressed="' + (S.age === "all") + '">All</button>' +
+        Object.keys(ages).sort().map(function(a){
+          return '<button data-age="' + esc(a) + '" aria-pressed="' + (S.age === a) + '">' + esc(a) + '</button>';
+        }).join("") + '</div></div></div>';
+
+      var now = new Date().toISOString();
+      var played = mine.filter(function(r){ return r[9]; });
+      var next = mine.filter(function(r){ return !r[9] && r[1] >= now; });
+      // A club's record is worth stating plainly; the tables answer position,
+      // this answers "how is the season going".
+      var w = 0, l = 0, t = 0, gf = 0, ga = 0;
+      played.forEach(function(r){
+        var home = String(r[3]) === String(id);
+        var f = home ? r[7] : r[8], a = home ? r[8] : r[7];
+        gf += f; ga += a;
+        if(f > a) w++; else if(f < a) l++; else t++;
+      });
+      var summary = played.length
+        ? '<div class="card"><div class="boxhead"><h3>' +
+          (S.age === "all" ? "All age groups" : esc(S.age)) + '</h3><span class="sub">' +
+          w + "-" + l + "-" + t + ' · ' + gf + ':' + ga + ' goals</span></div>' +
+          '<div class="pnote">' + played.length + ' played, ' + next.length + ' to come.</div></div>'
+        : "";
+
+      var section = function(title, list, sub){
+        if(!list.length) return "";
+        return '<div class="card"><div class="boxhead"><h3>' + esc(title) + '</h3>' +
+          '<span class="sub">' + esc(sub) + '</span></div>' +
+          list.map(function(r){ return matchHTML(r); }).join("") + '</div>';
+      };
+      body.innerHTML = chips + summary +
+        section("Next up", next.slice(0, 8), next.length + " scheduled") +
+        section("Results", played.slice().reverse(), played.length + " played") +
+        (mine.length ? "" : '<div class="card"><div class="empty">Nothing in that age group or division.</div></div>');
+    });
+  }
+
+  /* ---------- routing ----------
+     The URL is the state: a date, a division and age, a club. Followed clubs
+     ride along as ?f= so a link restores them. One writer owns the whole URL,
+     so nothing fights over it. */
+  function favParam(){
+    return S.favs.size ? "?f=" + encodeURIComponent(Array.from(S.favs).join(",")) : "";
+  }
+  function routePath(){
+    if(S.openClub) return "/club/" + slugOf(S.openClub);
+    if(S.view === "tables") return "/tables/" + (S.div === "all" ? "league" : S.div) + "/" + (S.tableAge || "U15");
+    if(S.view === "clubs") return "/clubs";
+    if(S.date && S.date !== nearestDate()) return "/scores/" + S.date;
+    return "/";
+  }
+  function routeTitle(){
+    var base = "MLS NEXT Scores";
+    if(S.openClub && S.clubs) return clubFull(S.openClub) + " — " + base;
+    if(S.view === "tables") return "Tables — " + base;
+    if(S.view === "clubs") return "Clubs — " + base;
+    if(S.date && S.date !== nearestDate())
+      return dayLabel(S.date, {month:"short", day:"numeric"}) + " — " + base;
+    return base;
+  }
+  var routing = false, urlTimer = null;
+  function syncUrl(mode){
+    if(routing) return;
+    var want = routePath() + favParam();
+    var write = function(){
+      if(location.pathname + location.search === want) return;
+      history[mode === "push" ? "pushState" : "replaceState"]({}, "", want);
+    };
+    document.title = routeTitle();
+    if(mode === "push"){ write(); return; }
+    clearTimeout(urlTimer);
+    urlTimer = setTimeout(write, 350);
+  }
+  function applyUrl(){
+    routing = true;
+    var parts = location.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+    S.openClub = null;
+    if(parts[0] === "club" && parts[1]){
+      var id = (S.slugs && S.slugs[parts[1]]) || (/^\d+$/.test(parts[1]) ? +parts[1] : null);
+      if(id){ S.openClub = String(id); S.view = "scores"; }
+    }else if(parts[0] === "tables"){
+      S.view = "tables";
+      if(parts[1] && DIV_NAME[parts[1]]) S.div = parts[1];
+      if(parts[2]) S.tableAge = parts[2];
+    }else if(parts[0] === "clubs"){
+      S.view = "clubs";
+    }else if(parts[0] === "scores" && parts[1]){
+      S.view = "scores"; S.date = parts[1];
+    }else{
+      S.view = "scores";
+    }
+    var sheet = el("sheet");
+    if(S.openClub){ sheet.setAttribute("open", ""); document.body.style.overflow = "hidden"; }
+    else { sheet.removeAttribute("open"); document.body.style.overflow = ""; }
+    routing = false;
+  }
+
+  /* ---------- shell ---------- */
+  function render(){
+    ["scores","tables","clubs"].forEach(function(v){
+      el("view-" + v).hidden = v !== S.view;
+      el("tab-" + v).setAttribute("aria-pressed", v === S.view ? "true" : "false");
+    });
+    ["all","league","academy","flex"].forEach(function(d){
+      var b = el("div-" + d);
+      if(b) b.setAttribute("aria-pressed", S.div === d ? "true" : "false");
+    });
+    if(S.view === "scores") renderScores();
+    else if(S.view === "tables") renderTables();
+    else renderClubs();
+    if(S.openClub) renderSheet();
+    syncUrl("now");
+  }
+
+  function setStamp(){
+    var t = el("stamptext"), s = el("stamp");
+    if(!META.updated){ t.textContent = "MLS NEXT"; return; }
+    var d = new Date(META.updated), mins = Math.round((Date.now() - d) / 60000);
+    s.classList.add("live");
+    t.textContent = mins < 2 ? "Updated just now"
+      : mins < 60 ? "Updated " + mins + " minutes ago"
+      : mins < 90 ? "Updated an hour ago"
+      : "Updated " + new Intl.DateTimeFormat("en-US", {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"}).format(d);
+  }
+
+  document.addEventListener("click", function(e){
+    var b = e.target.closest("button, [data-close]");
+    if(!b) return;
+    if(b.dataset.close){ closeClub(); return; }
+    if(b.dataset.tab){ S.view = b.dataset.tab; S.openClub = null; render(); window.scrollTo(0, 0); return; }
+    if(b.dataset.div){ S.div = b.dataset.div; render(); return; }
+    if(b.dataset.age){ S.age = b.dataset.age; render(); return; }
+    if(b.dataset.tage){ S.tableAge = b.dataset.tage; render(); return; }
+    if(b.dataset.date){ S.date = b.dataset.date; render(); return; }
+    if(b.dataset.follow){ S.followOnly = b.dataset.follow === "1"; render(); return; }
+    if(b.dataset.fav){ toggleFav(b.dataset.fav); return; }
+    if(b.id === "sheet-fav" && S.openClub){ toggleFav(S.openClub); return; }
+    if(b.dataset.club){ openClub(b.dataset.club); return; }
+    if(b.dataset.match){ return; }
+  });
+
+  document.addEventListener("input", function(e){
+    if(e.target && e.target.id === "cq"){
+      S.q = e.target.value;
+      var at = e.target.selectionStart;
+      renderClubs();
+      var again = el("cq");
+      if(again){ again.focus(); try{ again.setSelectionRange(at, at); }catch(x){} }
+    }
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && S.openClub) closeClub();
+  });
+
+  window.addEventListener("popstate", function(){ applyUrl(); render(); });
+
+  loadFavs();
+  applyUrl();
+  setStamp();
+  needClubs(function(){ render(); });
+  render();
+})();
+</script>
+</body>
+</html>

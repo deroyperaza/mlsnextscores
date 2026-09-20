@@ -192,6 +192,17 @@ def main():
     dump("clubs.json", {str(cid): [c["name"], short_name(c["name"]),
                                    sorted(c["divs"], key=lambda s: DIV_ORDER[s])]
                         for cid, c in sorted(clubs.items())})
+
+    # A club's URL should read like the club, not like a row id. Collisions get
+    # the id appended rather than a guessed disambiguation -- two clubs really
+    # are called Inter Miami CF at different levels.
+    slugs, taken = {}, {}
+    for cid, c in sorted(clubs.items()):
+        base = re.sub(r"[^a-z0-9]+", "-", short_name(c["name"]).lower()).strip("-") or str(cid)
+        slug = base if base not in taken else "%s-%d" % (base, cid)
+        taken[base] = True
+        slugs[slug] = cid
+    dump("slugs.json", slugs)
     dump("venues.json", {str(k): v for k, v in sorted(venues.items())})
     # kept out of clubs.json so the app never has to carry a third-party URL:
     # the mirror step reads this and nothing else does
