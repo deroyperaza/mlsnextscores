@@ -1,0 +1,75 @@
+name: Refresh MLS NEXT data
+
+# The feed host refuses both the sandbox this was written in and the laptop,
+# so every pull happens here. Cron on GitHub is best effort -- roughly half of
+# these slots actually fire -- which is why there are more of them than the
+# data strictly needs.
+on:
+  workflow_dispatch:
+  schedule:
+    # match days: every 40 minutes through the afternoon and evening, US time
+    - cron: "7,47 15-23 * * 0,6"
+    - cron: "7,47 0-4 * * 0,1"
+    # weekdays: results trickle in the morning after, so keep a slower beat
+    - cron: "17 12-23/3 * * 1-5"
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pull the feeds
+        run: python3 tools/fetch.py
+
+      - name: Reshape for the app
+        run: python3 tools/transform.py
+
+      - name: Mirror any new crests
+        run: python3 tools/crests.py
+
+      - name: Build the page
+        run: python3 build.py
+
+      # A refresh that finds nothing new must leave no commit behind, or the
+      # repo fills with empty history and every push redeploys the site.
+      - name: Commit anything that changed
+        run: |
+          git config user.name  "mlsnext-refresh"
+          git config user.email "noreply@mlsnextscores.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "nothing changed"
+            exit 0
+          fi
+          git commit -m "Refresh MLS NEXT data $(date -u '+%Y-%m-%d %H:%MZ')"
+          git push
+
+      # The pull runs unattended, so a failure has to leave a note in the repo
+      # rather than only in a log nobody opens.
+      - name: Leave a note if this run failed
+        if: failure()
+        run: |
+          mkdir -p probe
+          {
+            echo "# Refresh failed"
+            echo
+            echo "- when: $(date -u '+%Y-%m-%d %H:%M:%SZ')"
+            echo "- run:  ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } > probe/last_failure.md
+          git config user.name  "mlsnext-refresh"
+          git config user.email "noreply@mlsnextscores.com"
+          git add probe/last_failure.md
+          git commit -m "Refresh failed $(date -u '+%Y-%m-%d %H:%MZ')" || true
+          git push || true
