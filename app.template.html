@@ -197,9 +197,14 @@
   .sheet{position:fixed; inset:0; z-index:60; display:none}
   .sheet[open]{display:block}
   .sheet .scrim{position:absolute; inset:0; background:rgba(8,12,17,.55)}
-  .sheet .panel{position:absolute; inset:auto 0 0 0; max-height:92vh; background:var(--bg);
-                border-radius:18px 18px 0 0; display:flex; flex-direction:column; overflow:hidden}
-  .sheet .head{display:flex; align-items:center; gap:11px; padding:14px 14px 12px; background:var(--ink); color:#FFF}
+  /* A club is a place you stay for a while -- reading a season, switching age
+     groups -- not a peek at something with the app still showing above it. So
+     it takes the whole screen, and the way out is the close button, Escape or
+     Back rather than a strip of the page behind. */
+  .sheet .panel{position:absolute; inset:0; background:var(--bg);
+                display:flex; flex-direction:column; overflow:hidden}
+  .sheet .head{display:flex; align-items:center; gap:11px; background:var(--ink); color:#FFF;
+               padding:calc(env(safe-area-inset-top) + 14px) 14px 12px}
   .sheet .head .crest{width:38px; height:38px; border-radius:7px; background:#FFFFFF; padding:2px}
   .sheet .head .crest.nocrest{background:rgba(255,255,255,.12); padding:0}
   .sheet .head h2{flex:1 1 auto; min-width:0; font-size:17px; font-weight:800; overflow:hidden;
@@ -208,7 +213,8 @@
   .sheet .head .star[aria-pressed="true"] svg{fill:var(--cyan); stroke:var(--cyan)}
   .sheet .close{flex:none; width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,.12);
                 color:#FFF; display:flex; align-items:center; justify-content:center; font-size:19px}
-  .sheet .body{flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 12px 30px}
+  .sheet .body{flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;
+               padding:12px 12px calc(env(safe-area-inset-bottom) + 30px)}
 
   /* ---------- bottom nav ---------- */
   .tabbar{position:fixed; left:0; right:0; bottom:0; z-index:50; height:calc(var(--nav-h) + env(safe-area-inset-bottom));
