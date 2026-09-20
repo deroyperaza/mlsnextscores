@@ -434,11 +434,17 @@
   function matchHTML(r, opts){
     opts = opts || {};
     var done = r[9], hs = r[7], as = r[8];
+    // The league enters about one score in seven late, often the next morning.
+    // Such a match has kicked off and has no result, which is a third state --
+    // showing its kickoff time instead makes it look like it has not happened.
+    var kickedOff = !done && r[1] < new Date().toISOString();
     var hw = done && hs > as, aw = done && as > hs;
     var pins = isFav(r[3]) || isFav(r[4]);
     var when;
     if(done){
       when = '<span class="ft">Final</span>';
+    }else if(kickedOff){
+      when = '<span class="ft">No score yet</span>';
     }else if(unscheduled(r[1])){
       when = '<span class="ft">Time TBC</span>';
     }else{
@@ -707,12 +713,18 @@
         }).join("") + '</div></div></div>';
 
       var now = new Date().toISOString();
-      var played = mine.filter(function(r){ return r[9]; });
-      var next = mine.filter(function(r){ return !r[9] && r[1] >= now; });
+      /* Split on the clock, not on whether a score has been entered. A match
+         that kicked off this morning and has not been filed yet is a past
+         match with a missing result -- it belongs under Results saying so,
+         which is the honest answer to "how did we do". Splitting on the score
+         dropped 442 matches out of both lists. */
+      var played = mine.filter(function(r){ return r[1] < now; });
+      var next = mine.filter(function(r){ return r[1] >= now; });
       // A club's record is worth stating plainly; the tables answer position,
       // this answers "how is the season going".
-      var w = 0, l = 0, t = 0, gf = 0, ga = 0;
+      var w = 0, l = 0, t = 0, gf = 0, ga = 0, awaiting = 0;
       played.forEach(function(r){
+        if(!r[9]){ awaiting++; return; }
         var home = String(r[3]) === String(id);
         var f = home ? r[7] : r[8], a = home ? r[8] : r[7];
         gf += f; ga += a;
@@ -722,7 +734,8 @@
         ? '<div class="card"><div class="boxhead"><h3>' +
           (S.age === "all" ? "All age groups" : esc(S.age)) + '</h3><span class="sub">' +
           w + "-" + l + "-" + t + ' · ' + gf + ':' + ga + ' goals</span></div>' +
-          '<div class="pnote">' + played.length + ' played, ' + next.length + ' to come.</div></div>'
+          '<div class="pnote">' + played.length + ' played, ' + next.length + ' to come' +
+          (awaiting ? ', ' + awaiting + ' still waiting on a score' : "") + '.</div></div>'
         : "";
 
       var section = function(title, list, sub){
@@ -733,7 +746,8 @@
       };
       body.innerHTML = chips + summary +
         section("Next up", next.slice(0, 8), next.length + " scheduled") +
-        section("Results", played.slice().reverse(), played.length + " played") +
+        section("Results", played.slice().reverse(),
+                (played.length - awaiting) + " with a result") +
         (mine.length ? "" : '<div class="card"><div class="empty">Nothing in that age group or division.</div></div>');
     });
   }
