@@ -857,7 +857,15 @@
   loadFavs();
   applyUrl();
   setStamp();
-  needClubs(function(){ render(); });
+  /* A club link arriving cold cannot be resolved yet: the slug table is still
+     in flight, so applyUrl above had nothing to look the name up in. Once it
+     lands, read the URL again -- otherwise a link someone shared opens on the
+     scores page and looks like it went nowhere. */
+  var wantedClub = /^\/club\//.test(location.pathname);
+  needClubs(function(){
+    if(wantedClub && !S.openClub) applyUrl();
+    render();
+  });
   render();
 })();
 </script>
