@@ -647,12 +647,42 @@
        This is a Brooklyn household, so Northeast leads and the rest fall in
        alphabetically -- one place to change if that ever stops being true. */
     var HOME_FIRST = ["Northeast", "Northeast (Pro Player Pathway)"];
+    var hasFav = function(b){
+      return b.rows.some(function(r){ return isFav(r[1]); });
+    };
     var ordered = brackets.slice().sort(function(a, b){
+      // the group your clubs are in, then home, then the rest by name
+      var af = hasFav(a), bf = hasFav(b);
+      if(af !== bf) return af ? -1 : 1;
       var ai = HOME_FIRST.indexOf(a.name), bi = HOME_FIRST.indexOf(b.name);
       if(ai >= 0 || bi >= 0) return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
       return a.name.localeCompare(b.name);
     });
     v.innerHTML = head + ordered.map(function(b){
+      /* MLS NEXT keeps no table at U13 or U14: the feed returns the group with
+         its clubs and an alphabetical position, and not one tiebreaker value.
+         Drawing the usual table of dashes for that reads as a site that has
+         stopped updating, which is how this was noticed. Say what is true. */
+      var blank = b.rows.every(function(r){
+        return r.slice(2).every(function(v){ return v == null; });
+      });
+      if(blank){
+        return '<div class="card"><div class="boxhead"><h3>' + esc(b.name) + '</h3>' +
+          '<span class="sub">' + b.rows.length + ' clubs</span></div>' +
+          '<div class="standtbl"><table><tbody>' +
+          b.rows.map(function(r){
+            var cid = r[1];
+            return '<tr class="' + (isFav(cid) ? "pin" : "") + '"><td colspan="5">' +
+              '<span class="tm"><span class="pos"></span>' +
+              '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" ' +
+              'style="width:19px;height:19px"' + CRESTFAIL + '>' +
+              '<button class="nm" data-club="' + cid + '">' + esc(clubName(cid)) + '</button>' +
+              '</span></td></tr>';
+          }).join("") + '</tbody></table></div>' +
+          '<div class="pnote">MLS NEXT doesn\u2019t publish a table at this age group \u2014 ' +
+          'these are the clubs in the group, listed alphabetically. Results are on the ' +
+          'Scores tab and on each club\u2019s page.</div></div>';
+      }
       return '<div class="card"><div class="boxhead"><h3>' + esc(b.name) + '</h3>' +
         '<span class="sub">' + b.rows.length + ' clubs</span></div><div class="standtbl"><table>' +
         '<thead><tr><th>Club</th><th>MP</th><th class="wlt">W-L-T</th>' +
@@ -688,7 +718,12 @@
       var c = S.clubs[id];
       if(S.div !== "all" && c[2].indexOf(S.div) < 0) return false;
       return !q || c[0].toLowerCase().indexOf(q) > -1;
-    }).sort(function(a, b){ return S.clubs[a][1].localeCompare(S.clubs[b][1]); });
+    }).sort(function(a, b){
+      // a followed club leads wherever it appears, search results included
+      var fa = isFav(a), fb = isFav(b);
+      if(fa !== fb) return fa ? -1 : 1;
+      return S.clubs[a][1].localeCompare(S.clubs[b][1]);
+    });
 
     var row = function(id){
       var c = S.clubs[id];
@@ -814,6 +849,12 @@
     if(S.openClub) return "/club/" + slugOf(S.openClub);
     if(S.view === "tables") return "/tables/" + (S.div === "all" ? "league" : S.div) + "/" + (S.tableAge || "U15");
     if(S.view === "clubs") return "/clubs";
+    /* A filtered day is a different page from the whole day, so the link has to
+       say which: /scores/2026-09-20/academy/U13 reads as what it is, and sends
+       someone to the same dozen matches you were looking at. */
+    var tail = (S.div !== "all" ? "/" + S.div : "") +
+               (S.age !== "all" ? (S.div === "all" ? "/all" : "") + "/" + S.age : "");
+    if(tail) return "/scores/" + (S.date || nearestDate()) + tail;
     if(S.date && S.date !== nearestDate()) return "/scores/" + S.date;
     return "/";
   }
@@ -854,6 +895,8 @@
       S.view = "clubs";
     }else if(parts[0] === "scores" && parts[1]){
       S.view = "scores"; S.date = parts[1];
+      if(parts[2]) S.div = (parts[2] === "all" || DIV_NAME[parts[2]]) ? parts[2] : S.div;
+      if(parts[3]) S.age = parts[3];
     }else{
       S.view = "scores";
     }
