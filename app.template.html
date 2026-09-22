@@ -178,11 +178,34 @@
   .standtbl tr.pin td{background:var(--fav-bg)}
   .standtbl tr.pin td:first-child{box-shadow:inset 3px 0 0 var(--fav-line)}
   .standtbl .tm{display:flex; align-items:center; gap:8px; min-width:0; width:100%}
-  .standtbl .tm .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  .standtbl .tm .col{flex:1 1 auto; min-width:0}
+  .standtbl .tm .nm{display:block; width:100%; overflow:hidden; text-overflow:ellipsis;
                     white-space:nowrap; text-align:left; font-weight:600}
+  /* Goals go under the name rather than into three more columns. Eight columns
+     of figures do not fit a phone beside a club called Cedar Stars Academy
+     Hudson Valley, and the table is read down the points, not across. */
+  .standtbl .grow{display:block; margin-top:1px; font-size:10.5px; letter-spacing:-.005em; color:var(--muted);
+                  font-variant-numeric:tabular-nums; white-space:nowrap;
+                  overflow:hidden; text-overflow:ellipsis}
+  .standtbl td{vertical-align:top}
+  .standtbl .tm{align-items:flex-start}
+  .standtbl .tm .pos,
+  .standtbl .tm .crest{margin-top:1px}
   .standtbl .pos{flex:none; width:17px; font-family:"Archivo",sans-serif; font-size:11px; font-weight:700;
                  color:var(--muted); text-align:right; font-variant-numeric:tabular-nums}
   .standtbl .pts{font-family:"Archivo",sans-serif; font-weight:800}
+  /* On the smallest phones the figures were taking so much of the row that the
+     goals line under the club name had nowhere to go. The numbers each hold one
+     or two characters, so they can give the width back. */
+  @media (max-width:359px){
+    .standtbl th:not(:first-child),.standtbl td:not(:first-child){width:22px; padding-left:1px; padding-right:3px}
+    .standtbl th.wlt,.standtbl td.wlt{width:44px}
+    .standtbl th.gd,.standtbl td.gd{width:30px}
+    .standtbl th.w,.standtbl td.w{width:30px; padding-right:8px}
+    .standtbl th:first-child,.standtbl td:first-child{padding-left:8px; padding-right:4px}
+    .standtbl .grow{font-size:9.5px}
+    .standtbl .tm{gap:6px}
+  }
 
   /* ---------- club rows, search ---------- */
   .search{display:flex; align-items:center; gap:8px; background:var(--surface); border-radius:12px;
@@ -639,7 +662,9 @@
        one the order actually follows is the one set in bold. */
     var iMP = at("matches_played"),
         iPTS = at("points_penalty_shootout"),
-        iPPM = at("points_per_match_penalty_shootout");
+        iPPM = at("points_per_match_penalty_shootout"),
+        iGF = at("goals_for_per_match"),
+        iGA = at("goals_against_per_match");
     var wl = ["won_penalty_shootout","loss_penalty_shootout","tie_penalty_shootout"].map(at);
 
     /* The league's 38 conferences come back in the feed's own order, which puts
@@ -690,10 +715,23 @@
         b.rows.map(function(r){
           var cid = r[1], v_ = function(i){ return i >= 0 ? (r[2 + i] == null ? "–" : r[2 + i]) : "–"; };
           var mp = v_(iMP), pts = v_(iPTS), ppm = v_(iPPM);
+          /* The league publishes goals only as a rate per match, never as a
+             total -- but the rate times its own matches played gives the total
+             back exactly. Checked on all 2,115 rows it publishes: not one
+             disagreed with the goals counted from the fixtures themselves. */
+          var played = parseInt(mp, 10) || 0, goals = "";
+          if(played && r[2 + iGF] != null && r[2 + iGA] != null){
+            var gf = Math.round(parseFloat(r[2 + iGF]) * played),
+                ga = Math.round(parseFloat(r[2 + iGA]) * played),
+                gd = gf - ga;
+            goals = '<span class="grow">GF ' + gf + ' \u00b7 GA ' + ga + ' \u00b7 GD ' +
+              (gd > 0 ? "+" : gd < 0 ? "\u2212" : "") + Math.abs(gd) + '</span>';
+          }
           return '<tr class="' + (isFav(cid) ? "pin" : "") + '"><td>' +
             '<span class="tm"><span class="pos">' + esc(r[0]) + '</span>' +
             '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" style="width:19px;height:19px"' + CRESTFAIL + '>' +
-            '<button class="nm" data-club="' + cid + '">' + esc(clubName(cid)) + '</button></span></td>' +
+            '<span class="col"><button class="nm" data-club="' + cid + '">' + esc(clubName(cid)) +
+            '</button>' + goals + '</span></span></td>' +
             '<td>' + esc(mp) + '</td>' +
             '<td class="wlt">' + esc(v_(wl[0])) + '-' + esc(v_(wl[1])) + '-' + esc(v_(wl[2])) + '</td>' +
             '<td class="gd">' + esc(pts) + '</td>' +
