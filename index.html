@@ -85,6 +85,7 @@
   .seg button{flex:1; text-align:center; padding:8px 6px; border-radius:8px; font-family:"Archivo",sans-serif;
               font-size:12px; font-weight:700; letter-spacing:.055em; text-transform:uppercase; color:#A9BAC6}
   .seg button[aria-pressed="true"]{background:var(--cyan); color:#00201F}
+  .seg button[hidden]{display:none}
 
   .wrap{max-width:720px; margin:0 auto;
         padding:12px max(12px, env(safe-area-inset-right)) calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px)
@@ -340,6 +341,7 @@
   var S = {
     view: "scores",
     div: "all",              // all | league | academy | flex
+    tableDiv: "league",      // tables always belong to one division
     age: "all",
     date: null,
     tableAge: null,
@@ -363,6 +365,24 @@
   }
   var DIV_NAME = {}, DIV_ABBR = {};
   (META.divisions || []).forEach(function(d){ DIV_NAME[d.key] = d.name; DIV_ABBR[d.key] = d.abbr; });
+
+  /* Which division the segmented control is steering: the Tables tab carries
+     its own, because "all" has no meaning for a table. */
+  function curDiv(){ return S.view === "tables" ? S.tableDiv : S.div; }
+  function divMeta(k){
+    var ds = META.divisions || [];
+    for(var i = 0; i < ds.length; i++) if(ds[i].key === k) return ds[i];
+    return null;
+  }
+  /* Flex fields nothing below U15 and the league keeps no U17B table, so the
+     age chips are whatever that division actually has. Older meta.json files
+     carry no per-division list -- they fall back to every age. */
+  function agesFor(div, tables){
+    var all = META.ages || [];
+    if(div === "all") return all;
+    var d = divMeta(div), list = d && (tables ? d.tages : d.ages);
+    return (list && list.length) ? list : all;
+  }
 
   /* ---------- fetching ----------
      Every file here is small and immutable enough to keep once fetched: a day
@@ -547,9 +567,10 @@
 
   /* ---------- view: scores ---------- */
   function ageChips(active, onto){
-    var ages = META.ages || [];
+    var forTables = onto === "tage", ages = agesFor(curDiv(), forTables);
     return '<div class="filterrow"><span class="flabel">Age</span><div class="chips scroll">' +
-      '<button data-' + onto + '="all" aria-pressed="' + (active === "all") + '">All</button>' +
+      (forTables ? "" :
+        '<button data-' + onto + '="all" aria-pressed="' + (active === "all") + '">All</button>') +
       ages.map(function(a){
         return '<button data-' + onto + '="' + esc(a) + '" aria-pressed="' + (active === a) + '">' + esc(a) + '</button>';
       }).join("") + '</div></div>';
@@ -579,6 +600,7 @@
   function renderScores(){
     var v = el("view-scores");
     if(!S.date) S.date = nearestDate();
+    if(S.age !== "all" && agesFor(S.div, false).indexOf(S.age) < 0) S.age = "all";
     var head = dateStrip() +
       '<div class="filters">' + ageChips(S.age, "age") +
       (S.favs.size ? '<div class="filterrow"><span class="flabel">Show</span><div class="chips">' +
@@ -644,14 +666,10 @@
   /* ---------- view: tables ---------- */
   function renderTables(){
     var v = el("view-tables");
-    var ages = META.ages || [];
-    if(!S.tableAge) S.tableAge = ages.indexOf("U15") >= 0 ? "U15" : (ages[0] || "U13");
-    var div = S.div === "all" ? (META.divisions[0] || {}).key : S.div;
+    var div = S.tableDiv, ages = agesFor(div, true);
+    if(!S.tableAge || ages.indexOf(S.tableAge) < 0)
+      S.tableAge = ages.indexOf("U15") >= 0 ? "U15" : (ages[0] || "U13");
     var head = '<div class="filters">' + ageChips(S.tableAge, "tage") + '</div>';
-    if(S.div === "all"){
-      head += '<div class="sectionhead"><span class="eyebrow">' +
-        esc(DIV_NAME[div] || div) + '</span><span class="eyebrow">pick a division above</span></div>';
-    }
     var key = div + "__" + S.tableAge;
     var brackets = S.tables[key];
     if(!brackets){
@@ -901,7 +919,7 @@
   }
   function routePath(){
     if(S.openClub) return "/club/" + slugOf(S.openClub);
-    if(S.view === "tables") return "/tables/" + (S.div === "all" ? "league" : S.div) + "/" + (S.tableAge || "U15");
+    if(S.view === "tables") return "/tables/" + S.tableDiv + "/" + (S.tableAge || "U15");
     if(S.view === "clubs") return "/clubs";
     /* A filtered day is a different page from the whole day, so the link has to
        say which: /scores/2026-09-20/academy/U13 reads as what it is, and sends
@@ -943,7 +961,7 @@
       if(id){ S.openClub = String(id); S.view = "scores"; }
     }else if(parts[0] === "tables"){
       S.view = "tables";
-      if(parts[1] && DIV_NAME[parts[1]]) S.div = parts[1];
+      if(parts[1] && DIV_NAME[parts[1]]) S.tableDiv = parts[1];
       if(parts[2]) S.tableAge = parts[2];
     }else if(parts[0] === "clubs"){
       S.view = "clubs";
@@ -966,10 +984,12 @@
       el("view-" + v).hidden = v !== S.view;
       el("tab-" + v).setAttribute("aria-pressed", v === S.view ? "true" : "false");
     });
+    var now = curDiv();
     ["all","league","academy","flex"].forEach(function(d){
       var b = el("div-" + d);
-      if(b) b.setAttribute("aria-pressed", S.div === d ? "true" : "false");
+      if(b) b.setAttribute("aria-pressed", now === d ? "true" : "false");
     });
+    el("div-all").hidden = S.view === "tables";
     if(S.view === "scores") renderScores();
     else if(S.view === "tables") renderTables();
     else renderClubs();
@@ -993,7 +1013,11 @@
     if(!b) return;
     if(b.dataset.close){ closeClub(); return; }
     if(b.dataset.tab){ S.view = b.dataset.tab; S.openClub = null; render(); window.scrollTo(0, 0); return; }
-    if(b.dataset.div){ S.div = b.dataset.div; render(); return; }
+    if(b.dataset.div){
+      if(S.view === "tables"){ if(b.dataset.div === "all") return; S.tableDiv = b.dataset.div; }
+      else S.div = b.dataset.div;
+      render(); return;
+    }
     if(b.dataset.age){ S.age = b.dataset.age; render(); return; }
     if(b.dataset.tage){ S.tableAge = b.dataset.tage; render(); return; }
     if(b.dataset.date){ S.date = b.dataset.date; render(); return; }

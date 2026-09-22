@@ -135,6 +135,7 @@ def main():
     by_date = collections.defaultdict(list)
     by_club = collections.defaultdict(list)
     ages, synced, counts = set(), None, {}
+    div_ages = collections.defaultdict(set)
     now = datetime.datetime.now(datetime.timezone.utc)
     missing = []
 
@@ -153,6 +154,7 @@ def main():
             if not age:
                 continue
             ages.add(age)
+            div_ages[slug].add(age)
             for o in (ho, ao):
                 c = clubs.setdefault(o["id"], {"name": o.get("name") or "",
                                                "logo": o.get("logo_full_path") or "",
@@ -250,6 +252,16 @@ def main():
                 {"id": br.get("id"), "name": br.get("name"),
                  "gender": br.get("gender") or "", "calc": calc, "rows": rows})
 
+    age_sort = lambda a: (int(re.sub(r"\D", "", a) or 0), a)
+
+    # A division only gets an age chip on the Tables tab if a bracket for that
+    # age actually came back -- Flex fields U17B teams but the league keeps no
+    # U17B table anywhere.
+    tbl_ages = collections.defaultdict(set)
+    for k in tables:
+        slug, _, age = k.partition("__")
+        tbl_ages[slug].add(age)
+
     # ---- write -----------------------------------------------------------
     for sub in ("d", "c", "t"):
         os.makedirs(os.path.join(OUT, sub), exist_ok=True)
@@ -286,12 +298,17 @@ def main():
     # the mirror step reads this and nothing else does
     dump("crests.json", {str(cid): c["logo"] for cid, c in sorted(clubs.items()) if c["logo"]})
 
-    age_sort = lambda a: (int(re.sub(r"\D", "", a) or 0), a)
     meta = {
         "updated": datetime.datetime.now(datetime.timezone.utc)
                    .strftime("%Y-%m-%dT%H:%M:%SZ"),
         "synced": synced,
-        "divisions": [{"key": k, "name": n, "abbr": a, "matches": counts.get(k, 0)}
+        # Flex has no team below U15 and the Academy Division has no U17B, so
+        # each division carries the age groups it actually fields. Offering a
+        # chip that can only ever return nothing is a promise the data cannot
+        # keep.
+        "divisions": [{"key": k, "name": n, "abbr": a, "matches": counts.get(k, 0),
+                       "ages": sorted(div_ages[k], key=age_sort),
+                       "tages": sorted(tbl_ages[k], key=age_sort)}
                       for k, n, a in DIVISIONS if k in counts],
         "ages": sorted(ages, key=age_sort),
         "dates": sorted(by_date),
