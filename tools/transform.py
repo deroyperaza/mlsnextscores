@@ -64,6 +64,72 @@ def load(kind, slug):
         return json.load(f)
 
 
+
+def standings_from_results(division, age, club_ids, by_club, tiebreakers):
+    """Build a group table out of the matches themselves.
+
+    Only matches between two clubs in this group count, at this age and in this
+    division -- a club's game against another group is not part of this table.
+    The numbers are emitted under the league's own tiebreaker keys and in its
+    own order, so a computed table and a published one are the same object to
+    everything downstream.
+    """
+    want = set(club_ids)
+    seen, rec = set(), {}
+    for cid in club_ids:
+        rec[cid] = dict(w=0, l=0, t=0, gf=0, ga=0, mp=0)
+    for cid in club_ids:
+        for r in by_club.get(cid, []):
+            mid, home, away = r[0], r[3], r[4]
+            if mid in seen:
+                continue
+            if r[5] != age or r[6] != division:
+                continue
+            if home not in want or away not in want:
+                continue
+            if not r[9] or r[7] is None or r[8] is None:
+                continue
+            seen.add(mid)
+            hs, as_ = r[7], r[8]
+            # a tie settled on penalties is still a tie on the table; the
+            # shootout decides who advances, not who earned the point
+            for me, opp, gf, ga in ((home, away, hs, as_), (away, home, as_, hs)):
+                e = rec[me]
+                e["mp"] += 1; e["gf"] += gf; e["ga"] += ga
+                if gf > ga: e["w"] += 1
+                elif gf < ga: e["l"] += 1
+                else: e["t"] += 1
+
+    def per(n, mp):
+        return "%.1f" % (n / float(mp)) if mp else "0.0"
+
+    vals = {}
+    for cid, e in rec.items():
+        pts = 3 * e["w"] + e["t"]
+        vals[cid] = {
+            "points_penalty_shootout": str(pts),
+            "points_per_match_penalty_shootout": per(pts, e["mp"]),
+            "matches_played": str(e["mp"]),
+            "won_penalty_shootout": str(e["w"]),
+            "loss_penalty_shootout": str(e["l"]),
+            "tie_penalty_shootout": str(e["t"]),
+            "goal_differential_per_match": per(e["gf"] - e["ga"], e["mp"]),
+            "goals_for_per_match": per(e["gf"], e["mp"]),
+            "goals_against_per_match": per(e["ga"], e["mp"]),
+        }
+
+    def sort_key(cid):
+        e, v = rec[cid], vals[cid]
+        return (-float(v["points_per_match_penalty_shootout"]),
+                -(3 * e["w"] + e["t"]),
+                -float(v["goal_differential_per_match"]),
+                -float(v["goals_for_per_match"]))
+    order = sorted(club_ids, key=sort_key)
+    keys = [k[1] for k in tiebreakers]
+    return [[i + 1, cid] + [vals[cid].get(k) for k in keys]
+            for i, cid in enumerate(order)]
+
+
 def main():
     clubs, venues, comps = {}, {}, {}
     by_date = collections.defaultdict(list)
@@ -167,10 +233,22 @@ def main():
                 vals = r.get("tiebreaker_values") or {}
                 rows.append([r.get("position"), t["organisation_id"]] +
                             [(vals.get(k[1]) or {}).get("value") for k in tiebreak[slug]])
-            if rows:
-                tables["%s__%s" % (slug, age)].append(
-                    {"id": br.get("id"), "name": br.get("name"),
-                     "gender": br.get("gender") or "", "rows": rows})
+            if not rows:
+                continue
+            # MLS NEXT keeps no table at U13 or U14 -- the bracket arrives with
+            # its clubs and an empty tiebreaker_values. Every result is in the
+            # fixture feed though, so the table is computed here the way the
+            # league computes its own: three for a win, one for a tie, ordered
+            # on points per match because clubs in a group have played
+            # different numbers of matches.
+            calc = 0
+            if all(all(v is None for v in r[2:]) for r in rows):
+                rows = standings_from_results(
+                    slug, age, [r[1] for r in rows], by_club, tiebreak[slug])
+                calc = 1
+            tables["%s__%s" % (slug, age)].append(
+                {"id": br.get("id"), "name": br.get("name"),
+                 "gender": br.get("gender") or "", "calc": calc, "rows": rows})
 
     # ---- write -----------------------------------------------------------
     for sub in ("d", "c", "t"):

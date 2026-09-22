@@ -700,7 +700,10 @@
             '<td class="pts w">' + esc(ppm) + '</td></tr>';
         }).join("") + '</tbody></table></div></div>';
     }).join("") +
-    '<div class="pnote">Ordered by points per match, which is how MLS NEXT ranks these tables &mdash; clubs in the same group have often played a different number of matches. Ties are broken on matches played, then wins, losses and ties, then goal difference, goals for and goals against, all per match.</div>';
+    (ordered.some(function(b){ return b.calc; })
+      ? '<div class="pnote"><b>Worked out here, not published.</b> MLS NEXT keeps no table at U13 or U14, so these are built from the results themselves: three points for a win, one for a tie, counting only matches between two clubs in the same group. A tie settled on penalties stays a tie &mdash; the shootout decides who advances, not who earned the point. Nobody official stands behind this order.</div>'
+      : "") +
+    '<div class="pnote">Ordered by points per match, which is how MLS NEXT ranks these tables &mdash; clubs in the same group have often played a different number of matches. Early in a season that can put a club with one win above a club with four. Ties are broken on matches played, then wins, losses and ties, then goal difference, goals for and goals against, all per match.</div>';
   }
 
   /* ---------- view: clubs ---------- */
