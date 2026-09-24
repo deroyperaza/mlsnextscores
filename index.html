@@ -406,11 +406,15 @@
     fetch(DATA + path, {cache: "default"}).then(function(r){
       if(!r.ok) throw new Error(r.status);
       return r.json();
+    /* Two arguments rather than a .catch: a callback that throws while
+       rendering must not be mistaken for a failed fetch. With .catch it was
+       -- the queue had already been cleared, so the handler blew up on it and
+       the page sat on "Loading" with the real error buried. */
     }).then(function(j){
-      var q = pending[path]; delete pending[path];
+      var q = pending[path] || []; delete pending[path];
       q.forEach(function(f){ f(j); });
-    }).catch(function(){
-      var q = pending[path]; delete pending[path];
+    }, function(){
+      var q = pending[path] || []; delete pending[path];
       q.forEach(function(f){ f(null); });
     });
   }
@@ -971,7 +975,7 @@
          all of it: a club's schedule is the reason to be here, so cutting it
          at eight only sent people back to the league's own site. */
       body.innerHTML = chips + summary +
-        section("Played", played, (played.length - awaiting) + " with a result") +
+        section("Played", played, (played.length - tally.awaiting) + " with a result") +
         section("Next up", next, next.length + " scheduled") +
         (mine.length ? "" : '<div class="card"><div class="empty">Nothing in that age group or division.</div></div>');
     }); });
