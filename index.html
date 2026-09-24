@@ -451,6 +451,18 @@
   function club(id){ return (S.clubs && S.clubs[String(id)]) || null; }
   function clubName(id){ var c = club(id); return c ? c[1] : "#" + id; }
   function clubFull(id){ var c = club(id); return c ? c[0] : "#" + id; }
+  /* Plenty of clubs run two teams at the same age, one in Homegrown and one
+     in the Academy Division, and the league prints both under the club's own
+     name -- so a parent reading a score has no way to tell which team played.
+     The first team is the Homegrown one; the Academy side gets the (B). The
+     ages this applies to come from the data rather than from a guess about
+     the club, and a club with only an Academy team at that age is its first
+     team and is never marked. */
+  function isB(id, age, div){
+    var c = club(id);
+    return div === "academy" && !!c && (c[3] || []).indexOf(age) > -1;
+  }
+  function clubLabel(id, age, div){ return clubName(id) + (isB(id, age, div) ? " (B)" : ""); }
   function crest(id){ return "/img/clubs/" + id + ".png"; }
   var BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
   var CRESTFAIL = ' onerror="this.onerror=null;this.src=\'' + BLANK + '\';this.className+=\' nocrest\'"';
@@ -555,7 +567,7 @@
       return '<button class="side' + (done && !winner ? " dim" : "") + '" data-club="' + id +
         '" data-cage="' + esc(r[5]) + '" data-cdiv="' + esc(r[6]) + '">' +
         '<img class="crest" src="' + crest(id) + '" alt="" loading="lazy"' + CRESTFAIL + '>' +
-        '<span class="nm">' + esc(clubName(id)) + '</span>' +
+        '<span class="nm">' + esc(clubLabel(id, r[5], r[6])) + '</span>' +
         (done ? '<span class="sc">' + esc(score) + '</span>' : "") +
         (pens ? '<span class="pens">(' + pens + ')</span>' : "") + '</button>';
     };
@@ -754,7 +766,7 @@
               '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" ' +
               'style="width:19px;height:19px"' + CRESTFAIL + '>' +
               '<button class="nm" data-club="' + cid + '" data-cage="' + esc(S.tableAge) +
-              '" data-cdiv="' + esc(div) + '">' + esc(clubName(cid)) + '</button>' +
+              '" data-cdiv="' + esc(div) + '">' + esc(clubLabel(cid, S.tableAge, div)) + '</button>' +
               '</span></td></tr>';
           }).join("") + '</tbody></table></div>' +
           '<div class="pnote">MLS NEXT doesn\u2019t publish a table at this age group \u2014 ' +
@@ -784,7 +796,7 @@
             '<span class="tm"><span class="pos">' + esc(r[0]) + '</span>' +
             '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" style="width:19px;height:19px"' + CRESTFAIL + '>' +
             '<span class="col"><button class="nm" data-club="' + cid + '" data-cage="' +
-            esc(S.tableAge) + '" data-cdiv="' + esc(div) + '">' + esc(clubName(cid)) +
+            esc(S.tableAge) + '" data-cdiv="' + esc(div) + '">' + esc(clubLabel(cid, S.tableAge, div)) +
             '</button>' + goals + '</span></span></td>' +
             '<td>' + esc(mp) + '</td>' +
             '<td class="wlt">' + esc(v_(wl[0])) + '-' + esc(v_(wl[1])) + '-' + esc(v_(wl[2])) + '</td>' +
@@ -792,6 +804,11 @@
             '<td class="pts w">' + esc(ppm) + '</td></tr>';
         }).join("") + '</tbody></table></div></div>';
     }).join("") +
+    (div === "academy" && ordered.some(function(b){
+        return b.rows.some(function(r){ return isB(r[1], S.tableAge, div); });
+      })
+      ? '<div class="pnote"><b>(B)</b> is a club\u2019s second team at this age \u2014 its first team plays in the Homegrown division.</div>'
+      : "") +
     (ordered.some(function(b){ return b.calc; })
       ? '<div class="pnote"><b>Worked out here, not published.</b> MLS NEXT keeps no table at U13 or U14, so these are built from the results themselves: three points for a win, one for a tie, counting only matches between two clubs in the same group. A tie settled on penalties stays a tie &mdash; the shootout decides who advances, not who earned the point. Nobody official stands behind this order.</div>'
       : "") +
@@ -869,7 +886,8 @@
     var id = S.openClub;
     if(!id) return;
     needClubs(function(){ needVenues(function(){
-      el("sheet-name").textContent = clubFull(id);
+      el("sheet-name").textContent = clubFull(id) +
+        (isB(id, S.clubAge, S.clubDiv) ? " (B)" : "");
       var img = el("sheet-crest");
       img.onerror = function(){ this.onerror = null; this.src = BLANK; this.className = "crest nocrest"; };
       img.className = "crest";
@@ -974,7 +992,11 @@
          run down the season rather than two lists pointing opposite ways. And
          all of it: a club's schedule is the reason to be here, so cutting it
          at eight only sent people back to the league's own site. */
-      body.innerHTML = chips + summary +
+      var bnote = isB(id, S.clubAge, S.clubDiv)
+        ? '<div class="card"><div class="pnote">This is the club\u2019s second team at ' +
+          esc(S.clubAge) + ' \u2014 its first team plays in the Homegrown division.</div></div>'
+        : "";
+      body.innerHTML = chips + summary + bnote +
         section("Played", played, (played.length - tally.awaiting) + " with a result") +
         section("Next up", next, next.length + " scheduled") +
         (mine.length ? "" : '<div class="card"><div class="empty">Nothing in that age group or division.</div></div>');

@@ -279,8 +279,25 @@ def main():
                  for cid, rows in by_club.items())
     tbytes = sum(dump("t/%s.json" % k, v) for k, v in tables.items())
 
+    # A club that fields a side in both the Homegrown and the Academy division
+    # at one age has two teams there, and MLS NEXT prints both under the club's
+    # own name. The first team is the Homegrown one, so the app marks the other
+    # -- but only it knows which ages that applies to, hence this fourth field:
+    # the ages, per club, where an Academy team is a second team. 113 clubs and
+    # 668 club-ages as of this writing. Clubs with none carry no fourth field.
+    second = {}
+    for cid, rows in by_club.items():
+        seen = collections.defaultdict(set)
+        for r in rows:
+            seen[r[5]].add(r[6])
+        ages_b = sorted((a for a, ds in seen.items()
+                         if "league" in ds and "academy" in ds), key=age_sort)
+        if ages_b:
+            second[cid] = ages_b
+
     dump("clubs.json", {str(cid): [c["name"], short_name(c["name"]),
-                                   sorted(c["divs"], key=lambda s: DIV_ORDER[s])]
+                                   sorted(c["divs"], key=lambda s: DIV_ORDER[s])] +
+                                  ([second[cid]] if cid in second else [])
                         for cid, c in sorted(clubs.items())})
 
     # A club's URL should read like the club, not like a row id. Collisions get
