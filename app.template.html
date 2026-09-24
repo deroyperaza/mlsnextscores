@@ -958,7 +958,7 @@
           (mixed ? '<div class="pnote">' + spanList.map(function(k){
               return '<b>' + esc(divShort(k)) + '</b> ' +
                 line(recOf(played.filter(function(r){ return r[6] === k; })));
-            }).join(" \u00b7 ") + '. Two different teams at this age \u2014 pick a division above to see one on its own.</div>' : "") +
+            }).join(" \u00b7 ") + '. These are separate teams \u2014 pick a division above to see one on its own.</div>' : "") +
           '<div class="pnote">' + played.length + ' played, ' + next.length + ' to come' +
           (tally.awaiting ? ', ' + tally.awaiting + ' still waiting on a score' : "") + '.</div></div>'
         : "";
