@@ -135,7 +135,10 @@
   .match:first-child{border-top:0}
   .match.pin{background:var(--fav-bg); box-shadow:inset 3px 0 0 var(--fav-line)}
   .sides{min-width:0; display:flex; flex-direction:column; gap:5px}
-  .side{display:flex; align-items:center; gap:8px; min-width:0}
+  .side{display:flex; align-items:center; gap:8px; min-width:0; width:100%; text-align:left;
+        border-radius:6px; margin:-2px -4px; padding:2px 4px}
+  .side:active{background:var(--chip)}
+  @media (hover:hover){ .side:hover .nm{text-decoration:underline; text-underline-offset:2px} }
   .side.dim{color:var(--muted)}
   /* The badges are transparent PNGs and a good half of them are drawn in dark
      ink for a white page, which on a dark card leaves nothing but a smudge.
@@ -343,6 +346,8 @@
     div: "all",              // all | league | academy | flex
     tableDiv: "league",      // tables always belong to one division
     age: "all",
+    clubAge: "all",          // a club page filters itself, not the whole app
+    clubDiv: "all",
     date: null,
     tableAge: null,
     followOnly: false,
@@ -369,6 +374,11 @@
   /* Which division the segmented control is steering: the Tables tab carries
      its own, because "all" has no meaning for a table. */
   function curDiv(){ return S.view === "tables" ? S.tableDiv : S.div; }
+  /* "Allstate Homegrown" is the division's name; on a chip it is the word
+     Homegrown that does the work. */
+  function divShort(k){
+    return String(DIV_NAME[k] || k).replace(/^Allstate\s+/, "").replace(/\s+Division$/, "");
+  }
   function divMeta(k){
     var ds = META.divisions || [];
     for(var i = 0; i < ds.length; i++) if(ds[i].key === k) return ds[i];
@@ -532,12 +542,17 @@
       when = '<span class="t">' + esc(timeIn(r[1], r[2])) + '</span>' +
              (tz ? '<span class="tz">' + esc(tz) + '</span>' : "");
     }
+    /* There is no box score to open, so the row's job is to get you to the
+       two clubs -- and to the right part of their page: a club fields a side
+       at every age and often in two divisions, so the link carries the age
+       and division of this match rather than dropping you into all of them. */
     var side = function(id, score, winner, pens){
-      return '<span class="side' + (done && !winner ? " dim" : "") + '">' +
+      return '<button class="side' + (done && !winner ? " dim" : "") + '" data-club="' + id +
+        '" data-cage="' + esc(r[5]) + '" data-cdiv="' + esc(r[6]) + '">' +
         '<img class="crest" src="' + crest(id) + '" alt="" loading="lazy"' + CRESTFAIL + '>' +
         '<span class="nm">' + esc(clubName(id)) + '</span>' +
         (done ? '<span class="sc">' + esc(score) + '</span>' : "") +
-        (pens ? '<span class="pens">(' + pens + ')</span>' : "") + '</span>';
+        (pens ? '<span class="pens">(' + pens + ')</span>' : "") + '</button>';
     };
     var hp = "", ap = "";
     if(done && hs === as && (r[13] || r[14])){ hp = r[13]; ap = r[14]; }
@@ -554,7 +569,7 @@
       var place = S.venues && S.venues[r[10]];
       if(place) foot = '<span class="mfoot">' + esc(place) + '</span>';
     }
-    return '<button class="match' + (pins ? " pin" : "") + (opts.detail ? " detail" : "") +
+    return '<div class="match' + (pins ? " pin" : "") + (opts.detail ? " detail" : "") +
       '" data-match="' + r[0] + '">' +
       '<span class="sides">' +
         side(r[3], hs, hw || (hp !== "" && hp > ap), hp) +
@@ -562,7 +577,7 @@
       '</span>' +
       '<span class="when">' + day + when +
         (opts.age !== false ? '<span class="agebadge">' + esc(r[5]) + '</span>' : "") +
-      '</span>' + foot + '</button>';
+      '</span>' + foot + '</div>';
   }
 
   /* ---------- view: scores ---------- */
@@ -732,7 +747,8 @@
               '<span class="tm"><span class="pos"></span>' +
               '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" ' +
               'style="width:19px;height:19px"' + CRESTFAIL + '>' +
-              '<button class="nm" data-club="' + cid + '">' + esc(clubName(cid)) + '</button>' +
+              '<button class="nm" data-club="' + cid + '" data-cage="' + esc(S.tableAge) +
+              '" data-cdiv="' + esc(div) + '">' + esc(clubName(cid)) + '</button>' +
               '</span></td></tr>';
           }).join("") + '</tbody></table></div>' +
           '<div class="pnote">MLS NEXT doesn\u2019t publish a table at this age group \u2014 ' +
@@ -761,7 +777,8 @@
           return '<tr class="' + (isFav(cid) ? "pin" : "") + '"><td>' +
             '<span class="tm"><span class="pos">' + esc(r[0]) + '</span>' +
             '<img class="crest" src="' + crest(cid) + '" alt="" loading="lazy" style="width:19px;height:19px"' + CRESTFAIL + '>' +
-            '<span class="col"><button class="nm" data-club="' + cid + '">' + esc(clubName(cid)) +
+            '<span class="col"><button class="nm" data-club="' + cid + '" data-cage="' +
+            esc(S.tableAge) + '" data-cdiv="' + esc(div) + '">' + esc(clubName(cid)) +
             '</button>' + goals + '</span></span></td>' +
             '<td>' + esc(mp) + '</td>' +
             '<td class="wlt">' + esc(v_(wl[0])) + '-' + esc(v_(wl[1])) + '-' + esc(v_(wl[2])) + '</td>' +
@@ -801,7 +818,8 @@
       var c = S.clubs[id];
       return '<div class="clubrow' + (isFav(id) ? " pin" : "") + '">' +
         '<img class="crest" src="' + crest(id) + '" alt="" loading="lazy" style="width:28px;height:28px"' + CRESTFAIL + '>' +
-        '<button class="info" data-club="' + id + '"><span class="nm">' + esc(c[0]) + '</span>' +
+        '<button class="info" data-club="' + id + '" data-cage="' + esc(S.age) +
+        '" data-cdiv="' + esc(S.div) + '"><span class="nm">' + esc(c[0]) + '</span>' +
         '<span class="sub">' + c[2].map(function(d){ return esc(DIV_NAME[d] || d); }).join(" · ") + '</span></button>' +
         '<button class="star" data-fav="' + id + '" aria-pressed="' + isFav(id) + '" aria-label="Follow ' + esc(c[0]) + '">' +
         '<svg viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8z"></path></svg>' +
@@ -823,11 +841,16 @@
   }
 
   /* ---------- the club sheet ---------- */
-  function openClub(id){
+  function openClub(id, age, div){
     S.openClub = String(id);
+    S.clubAge = age || "all";
+    S.clubDiv = div || "all";
     el("sheet").setAttribute("open", "");
     document.body.style.overflow = "hidden";
     renderSheet();
+    // opening one club from another's fixture list must not land halfway down
+    var body = el("sheet-body");
+    if(body) body.scrollTop = 0;
     syncUrl("push");
   }
   function closeClub(){
@@ -857,15 +880,38 @@
         body.innerHTML = '<div class="card"><div class="empty">No fixtures on file for this club.</div></div>';
         return;
       }
-      var mine = S.age === "all" ? rows : rows.filter(function(r){ return r[5] === S.age; });
-      if(S.div !== "all") mine = mine.filter(function(r){ return r[6] === S.div; });
+      /* A club can field a U15 side in Homegrown and another in Flex, and
+         merging the two into one list is how a page ends up claiming a record
+         no team ever had. So the page filters on both, and each chip row is
+         drawn from what survives the other filter -- a combination that
+         returns nothing is never offered. */
+      var divsAll = {}, agesAll = {};
+      rows.forEach(function(r){ divsAll[r[6]] = true; agesAll[r[5]] = true; });
+      var multi = Object.keys(divsAll).length > 1;
+      if(!multi) S.clubDiv = "all";
+      if(S.clubDiv !== "all" && !divsAll[S.clubDiv]) S.clubDiv = "all";
+      var inDiv = S.clubDiv === "all" ? rows : rows.filter(function(r){ return r[6] === S.clubDiv; });
       var ages = {};
-      rows.forEach(function(r){ ages[r[5]] = true; });
-      var chips = '<div class="filters"><div class="filterrow"><span class="flabel">Age</span>' +
-        '<div class="chips scroll"><button data-age="all" aria-pressed="' + (S.age === "all") + '">All</button>' +
-        Object.keys(ages).sort().map(function(a){
-          return '<button data-age="' + esc(a) + '" aria-pressed="' + (S.age === a) + '">' + esc(a) + '</button>';
-        }).join("") + '</div></div></div>';
+      inDiv.forEach(function(r){ ages[r[5]] = true; });
+      if(S.clubAge !== "all" && !ages[S.clubAge]) S.clubAge = "all";
+      var inAge = S.clubAge === "all" ? rows : rows.filter(function(r){ return r[5] === S.clubAge; });
+      var divs = {};
+      inAge.forEach(function(r){ divs[r[6]] = true; });
+
+      var mine = inDiv.filter(function(r){ return S.clubAge === "all" || r[5] === S.clubAge; });
+      var chipRow = function(label, key, list, active, labeller){
+        return '<div class="filterrow"><span class="flabel">' + label + '</span><div class="chips scroll">' +
+          '<button data-' + key + '="all" aria-pressed="' + (active === "all") + '">All</button>' +
+          list.map(function(v){
+            return '<button data-' + key + '="' + esc(v) + '" aria-pressed="' + (active === v) + '">' +
+              esc(labeller ? labeller(v) : v) + '</button>';
+          }).join("") + '</div></div>';
+      };
+      var divOrder = (META.divisions || []).map(function(d){ return d.key; });
+      var chips = '<div class="filters">' +
+        (multi ? chipRow("Division", "cdiv",
+            divOrder.filter(function(k){ return divs[k]; }), S.clubDiv, divShort) : "") +
+        chipRow("Age", "cage", Object.keys(ages).sort(), S.clubAge) + '</div>';
 
       var now = new Date().toISOString();
       /* Split on the clock, not on whether a score has been entered. A match
@@ -887,7 +933,9 @@
       });
       var summary = played.length
         ? '<div class="card"><div class="boxhead"><h3>' +
-          (S.age === "all" ? "All age groups" : esc(S.age)) + '</h3><span class="sub">' +
+          [S.clubAge === "all" ? "All age groups" : esc(S.clubAge),
+           S.clubDiv === "all" ? "" : esc(divShort(S.clubDiv))].filter(Boolean).join(" \u00b7 ") +
+          '</h3><span class="sub">' +
           w + "-" + l + "-" + t + ' · ' + gf + ':' + ga + ' goals</span></div>' +
           '<div class="pnote">' + played.length + ' played, ' + next.length + ' to come' +
           (awaiting ? ', ' + awaiting + ' still waiting on a score' : "") + '.</div></div>'
@@ -918,7 +966,11 @@
     return S.favs.size ? "?f=" + encodeURIComponent(Array.from(S.favs).join(",")) : "";
   }
   function routePath(){
-    if(S.openClub) return "/club/" + slugOf(S.openClub);
+    if(S.openClub){
+      var ct = (S.clubDiv !== "all" ? "/" + S.clubDiv : "") +
+               (S.clubAge !== "all" ? (S.clubDiv === "all" ? "/all" : "") + "/" + S.clubAge : "");
+      return "/club/" + slugOf(S.openClub) + ct;
+    }
     if(S.view === "tables") return "/tables/" + S.tableDiv + "/" + (S.tableAge || "U15");
     if(S.view === "clubs") return "/clubs";
     /* A filtered day is a different page from the whole day, so the link has to
@@ -958,7 +1010,11 @@
     S.openClub = null;
     if(parts[0] === "club" && parts[1]){
       var id = (S.slugs && S.slugs[parts[1]]) || (/^\d+$/.test(parts[1]) ? +parts[1] : null);
-      if(id){ S.openClub = String(id); S.view = "scores"; }
+      if(id){
+        S.openClub = String(id); S.view = "scores";
+        S.clubDiv = (parts[2] && parts[2] !== "all" && DIV_NAME[parts[2]]) ? parts[2] : "all";
+        S.clubAge = parts[3] || (parts[2] && parts[2] !== "all" && !DIV_NAME[parts[2]] ? parts[2] : "all");
+      }
     }else if(parts[0] === "tables"){
       S.view = "tables";
       if(parts[1] && DIV_NAME[parts[1]]) S.tableDiv = parts[1];
@@ -1019,12 +1075,14 @@
       render(); return;
     }
     if(b.dataset.age){ S.age = b.dataset.age; render(); return; }
+    if(b.dataset.club){ openClub(b.dataset.club, b.dataset.cage, b.dataset.cdiv); return; }
+    if(b.dataset.cage){ S.clubAge = b.dataset.cage; renderSheet(); syncUrl("now"); return; }
+    if(b.dataset.cdiv){ S.clubDiv = b.dataset.cdiv; renderSheet(); syncUrl("now"); return; }
     if(b.dataset.tage){ S.tableAge = b.dataset.tage; render(); return; }
     if(b.dataset.date){ S.date = b.dataset.date; render(); return; }
     if(b.dataset.follow){ S.followOnly = b.dataset.follow === "1"; render(); return; }
     if(b.dataset.fav){ toggleFav(b.dataset.fav); return; }
     if(b.id === "sheet-fav" && S.openClub){ toggleFav(S.openClub); return; }
-    if(b.dataset.club){ openClub(b.dataset.club); return; }
     if(b.dataset.match){ return; }
   });
 
