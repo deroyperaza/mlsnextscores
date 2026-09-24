@@ -155,6 +155,7 @@
             font-variant-numeric:tabular-nums; min-width:18px; text-align:right}
   .side .pens{flex:none; font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums}
   .when{flex:none; text-align:right; min-width:54px}
+  .when .divbadge{margin-top:3px}
   .match.detail .when{min-width:82px}
   .when .t,
   .when .d{display:block; font-family:"Archivo",sans-serif; font-size:12.5px; font-weight:700;
@@ -577,6 +578,7 @@
       '</span>' +
       '<span class="when">' + day + when +
         (opts.age !== false ? '<span class="agebadge">' + esc(r[5]) + '</span>' : "") +
+        (opts.divbadge ? '<span class="divbadge">' + esc(DIV_ABBR[r[6]] || r[6]) + '</span>' : "") +
       '</span>' + foot + '</div>';
   }
 
@@ -923,29 +925,46 @@
       var next = mine.filter(function(r){ return r[1] >= now; });
       // A club's record is worth stating plainly; the tables answer position,
       // this answers "how is the season going".
-      var w = 0, l = 0, t = 0, gf = 0, ga = 0, awaiting = 0;
-      played.forEach(function(r){
-        if(!r[9]){ awaiting++; return; }
-        var home = String(r[3]) === String(id);
-        var f = home ? r[7] : r[8], a = home ? r[8] : r[7];
-        gf += f; ga += a;
-        if(f > a) w++; else if(f < a) l++; else t++;
-      });
+      var recOf = function(list){
+        var o = {w:0, l:0, t:0, gf:0, ga:0, awaiting:0};
+        list.forEach(function(r){
+          if(!r[9]){ o.awaiting++; return; }
+          var home = String(r[3]) === String(id);
+          var f = home ? r[7] : r[8], a = home ? r[8] : r[7];
+          o.gf += f; o.ga += a;
+          if(f > a) o.w++; else if(f < a) o.l++; else o.t++;
+        });
+        return o;
+      };
+      var line = function(o){ return o.w + "-" + o.l + "-" + o.t + " \u00b7 " + o.gf + ":" + o.ga + " goals"; };
+      var tally = recOf(played);
+      /* One age group can still be two teams: a club with a Homegrown side and
+         a Flex side at U16 has two records, and adding them together produces
+         a record no team has. So when the division is left on All and the age
+         really is fielded twice, the card keeps them apart and says so. */
+      var spanned = {};
+      mine.forEach(function(r){ spanned[r[6]] = true; });
+      var spanList = divOrder.filter(function(k){ return spanned[k]; });
+      var mixed = S.clubDiv === "all" && S.clubAge !== "all" && spanList.length > 1;
       var summary = played.length
         ? '<div class="card"><div class="boxhead"><h3>' +
           [S.clubAge === "all" ? "All age groups" : esc(S.clubAge),
            S.clubDiv === "all" ? "" : esc(divShort(S.clubDiv))].filter(Boolean).join(" \u00b7 ") +
-          '</h3><span class="sub">' +
-          w + "-" + l + "-" + t + ' · ' + gf + ':' + ga + ' goals</span></div>' +
+          '</h3><span class="sub">' + (mixed ? spanList.length + " teams" : line(tally)) + '</span></div>' +
+          (mixed ? '<div class="pnote">' + spanList.map(function(k){
+              return '<b>' + esc(divShort(k)) + '</b> ' +
+                line(recOf(played.filter(function(r){ return r[6] === k; })));
+            }).join(" \u00b7 ") + '. Two different teams at this age \u2014 pick a division above to see one on its own.</div>' : "") +
           '<div class="pnote">' + played.length + ' played, ' + next.length + ' to come' +
-          (awaiting ? ', ' + awaiting + ' still waiting on a score' : "") + '.</div></div>'
+          (tally.awaiting ? ', ' + tally.awaiting + ' still waiting on a score' : "") + '.</div></div>'
         : "";
 
       var section = function(title, list, sub){
         if(!list.length) return "";
         return '<div class="card"><div class="boxhead"><h3>' + esc(title) + '</h3>' +
           '<span class="sub">' + esc(sub) + '</span></div>' +
-          list.map(function(r){ return matchHTML(r, {detail:true}); }).join("") + '</div>';
+          list.map(function(r){ return matchHTML(r, {detail:true,
+            divbadge: S.clubDiv === "all" && spanList.length > 1}); }).join("") + '</div>';
       };
       /* Played first and both halves in date order, so the page reads as one
          run down the season rather than two lists pointing opposite ways. And
