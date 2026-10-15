@@ -1,8 +1,8 @@
 {
- "schedule__league": "\"26ea24d46a901a52dd59ddedef00b6c4\"",
- "standings__league": "\"cf4db083f6eb775b0c295234f569b02f\"",
- "schedule__academy": "\"72c6aed84f2e25f6669f53b3137eefd6\"",
- "standings__academy": "\"f91fb8e331ddc532caf72196e84ffe63\"",
- "schedule__flex": "\"394b84d915d39cfb642ce2afc369b983\"",
- "standings__flex": "\"36648dfa217f1d2a47e265b8d87b1d00\""
+ "schedule__league": "\"0c7cc67f8425104b75a42fcc1378b647\"",
+ "standings__league": "\"37e92db9ff30ec133d230f9c8ba3f233\"",
+ "schedule__academy": "\"090541ab3db4e1b2e6819180241cbfe6\"",
+ "standings__academy": "\"7297997eaf53df92a1349b0055719573\"",
+ "schedule__flex": "\"a45b6d556ea43f8ec5bae6207304a1ed\"",
+ "standings__flex": "\"ad0da24c54a822a3e83dcaef0bdbfbba\""
 }
