@@ -1,4 +1,4 @@
 # Refresh failed
 
-- when: 2026-11-06 19:29:47Z
-- run:  https://github.com/deroyperaza/mlsnextscores/actions/runs/42280090954
+- when: 2026-11-07 00:58:06Z
+- run:  https://github.com/deroyperaza/mlsnextscores/actions/runs/42321369217
