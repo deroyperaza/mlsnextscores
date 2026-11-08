@@ -56,12 +56,70 @@ def short_name(name):
     return n.strip() or (name or "")
 
 
-def load(kind, slug):
+def _read(kind, slug):
     path = os.path.join(RAW, "%s__%s.json" % (kind, slug))
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def load(kind, slug):
+    """Read a feed, in the shape the rest of this file expects.
+
+    Since 29 Oct 2026 MLS has stopped updating schedule/<key>.json (it is a
+    frozen copy; rescheduled kickoffs never reach it). The live fixtures now
+    ride inside standings/<key>.json, with clubs, venues and age groups
+    interned by id and the brackets nested under competition_season_stages.
+    Rebuild the old shapes from that file whenever it carries events.
+    """
+    st = _read("standings", slug)
+    cs = (st or {}).get("competition_season") or {}
+    if not cs.get("events"):
+        return _read(kind, slug)
+
+    orgs = {o["id"]: o for o in cs.get("organisations") or []}
+    locs = {l["id"]: l for l in cs.get("event_locations") or []}
+    comps = {c["id"]: c for c in cs.get("competitions") or []}
+    ages = {a["id"]: a.get("name") for a in cs.get("age_groups") or []}
+
+    def org(oid):
+        o = orgs.get(oid) or {}
+        return {"id": oid, "name": o.get("name") or "",
+                "logo_full_path": o.get("logo_url") or ""} if oid else {}
+
+    if kind == "schedule":
+        events = []
+        for e in cs["events"]:
+            e = dict(e)
+            e["home_organisation"] = org(e.pop("home_organisation_id", None))
+            e["away_organisation"] = org(e.pop("away_organisation_id", None))
+            e["event_location"] = locs.get(e.pop("event_location_id", None)) or {}
+            e["competition"] = comps.get(e.pop("competition_id", None)) or {}
+            events.append(e)
+        old = _read("schedule", slug) or {}
+        return {"events": events, "synced_at": old.get("synced_at") or ""}
+
+    # standings: flatten the stages; rows carry the club flat, and no values
+    # (the U13/U14-style empty tiebreaker_values, so tables are computed)
+    brackets = []
+    for stage in cs.get("competition_season_stages") or []:
+        for br in stage.get("competition_brackets") or []:
+            br = dict(br)
+            br["age_group"] = {"name": ages.get(br.get("age_group_id")) or ""}
+            br["standings"] = [
+                {"position": r.get("position"),
+                 "team": {"organisation_id": r.get("organisation_id"),
+                          "name": r.get("name") or "",
+                          "logo_url": r.get("logo_url") or ""},
+                 # values arrive as bare strings now, not {"value": ...}
+                 "tiebreaker_values": {
+                     k: (v if isinstance(v, dict) else {"value": v})
+                     for k, v in (r.get("tiebreaker_values") or {}).items()}}
+                for r in br.get("standings") or []]
+            brackets.append(br)
+    cs = dict(cs, competition_brackets=brackets)
+    return dict(st, competition_season=cs)
 
 
 

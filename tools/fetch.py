@@ -81,9 +81,19 @@ def main():
                 continue
             # parse before writing: a truncated transfer must not land on disk
             # as a valid-looking file and quietly empty the site
-            doc = json.loads(body)
+            # A retired key comes back 200 with the viewer's HTML page (Flex,
+            # Nov 2026). Skip that feed; never let it stop the others.
+            try:
+                doc = json.loads(body)
+            except ValueError:
+                report[name] = "SKIPPED: not JSON (%d bytes) -- key retired?" % len(body)
+                continue
+            cs = doc.get("competition_season", {})
+            # brackets moved under competition_season_stages in Oct 2026
             n = len(doc.get("events", [])) if kind == "schedule" else \
-                len(doc.get("competition_season", {}).get("competition_brackets", []))
+                len(cs.get("competition_brackets", [])) + sum(
+                    len(s.get("competition_brackets", []))
+                    for s in cs.get("competition_season_stages", []))
             if n == 0:
                 report[name] = "REFUSED: empty payload"
                 continue
